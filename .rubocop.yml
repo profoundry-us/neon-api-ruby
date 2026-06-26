@@ -56,3 +56,12 @@ RSpec/NestedGroups:
   Max: 5
 RSpec/MultipleMemoizedHelpers:
   Max: 10
+
+# The live integration spec describes an end-to-end flow (not a class) and needs
+# before/after(:all) to toggle WebMock's net-connect block once for the group.
+RSpec/DescribeClass:
+  Exclude:
+    - "spec/integration/**/*"
+RSpec/BeforeAfterAll:
+  Exclude:
+    - "spec/integration/**/*"
