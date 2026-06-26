@@ -9,9 +9,10 @@
 #
 #   NEON_API_KEY=neon_api_key_... bundle exec rspec spec/integration/neon_auth_live_spec.rb
 #
-# Optionally set NEON_PROJECT_ID / NEON_BRANCH_ID to target a specific
-# project/branch; otherwise the first project and its default branch are
-# discovered via the API.
+# To target a specific project/branch, set NEON_PROJECT_ID / NEON_BRANCH_ID —
+# locally, copy .env.example to .env (loaded by spec_helper via dotenv, never in
+# CI). Otherwise the first project and its default branch are discovered via the
+# API.
 #
 # What it exercises end-to-end:
 #   management (me) -> auth.config -> oauth_providers.list ->

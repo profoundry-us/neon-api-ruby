@@ -8,6 +8,7 @@
 /tmp/
 *.gem
 .DS_Store
+/.env
 .rspec_status
 .ruby-version
 .idea/

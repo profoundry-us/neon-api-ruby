@@ -16,6 +16,7 @@ GEM
       bigdecimal
       rexml
     diff-lcs (1.6.2)
+    dotenv (3.2.0)
     ffi (1.17.4)
     hashdiff (1.2.1)
     json (2.20.0)
@@ -81,6 +82,7 @@ PLATFORMS
   ruby
 
 DEPENDENCIES
+  dotenv
   neon-api!
   rake
   rbnacl (~> 7.1)

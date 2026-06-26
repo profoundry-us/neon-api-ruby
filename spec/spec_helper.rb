@@ -3,6 +3,18 @@
 require "neon_api"
 require "webmock/rspec"
 
+# Load local-only env vars (e.g. NEON_PROJECT_ID for the opt-in live integration
+# spec). Never in CI, and a missing .env or missing gem is fine. Dotenv does not
+# override variables already set in the shell.
+unless ENV["CI"]
+  begin
+    require "dotenv"
+    Dotenv.load
+  rescue LoadError
+    # dotenv isn't installed; nothing to load.
+  end
+end
+
 # All HTTP is mocked; no test should ever touch the network.
 WebMock.disable_net_connect!
 

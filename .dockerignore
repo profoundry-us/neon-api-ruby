@@ -10,6 +10,7 @@ doc/
 pkg/
 tmp/
 *.gem
+.env
 .DS_Store
 .rspec_status
 .idea/

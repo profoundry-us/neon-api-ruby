@@ -12,6 +12,10 @@ group :development, :test do
   gem "rubocop-rspec"
   gem "webmock"
 
+  # Loads .env (local only, never in CI) so the opt-in live integration spec has
+  # a stable target via NEON_PROJECT_ID/NEON_BRANCH_ID. See .env.example.
+  gem "dotenv"
+
   # Ed25519 (EdDSA) support so the test suite can exercise real Neon Auth-shaped
   # token verification (see spec/neon_api/auth/jwt_verifier_eddsa_spec.rb).
   # Requires libsodium present at runtime. Apps verifying EdDSA tokens add this
