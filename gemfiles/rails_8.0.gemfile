@@ -1,0 +1,14 @@
+# frozen_string_literal: true
+
+# Rails 8.0 bundle for the Combustion integration specs (spec/rails). Isolated
+# from the main Gemfile so the core gem's Ruby 3.0–3.3 matrix stays Rails-free;
+# exercised in a dedicated CI job on a modern Ruby (Rails 8 needs Ruby >= 3.2).
+# Run with:
+#
+#   BUNDLE_GEMFILE=gemfiles/rails_8.0.gemfile bundle install
+#   BUNDLE_GEMFILE=gemfiles/rails_8.0.gemfile bundle exec rspec spec/rails
+eval_gemfile File.expand_path("../Gemfile", __dir__)
+
+gem "combustion", "~> 1.5"
+gem "rack-test", "~> 2.1"
+gem "rails", "~> 8.0.0"

@@ -55,9 +55,10 @@ console:
 test:
     docker compose exec -it gem bundle exec rspec --exclude-pattern "spec/rails/**/*_spec.rb"
 
-# Run the Combustion-based Rails integration specs (isolated bundle)
-test-rails:
-    docker compose exec -e BUNDLE_GEMFILE=gemfiles/rails.gemfile -it gem bash -lc 'bundle install && bundle exec rspec spec/rails'
+# Run the Combustion-based Rails integration specs (default Rails 8.0; pass a
+# gemfile path to test another version, e.g. `just test-rails gemfiles/rails_7.1.gemfile`)
+test-rails gemfile="gemfiles/rails_8.0.gemfile":
+    docker compose exec -e BUNDLE_GEMFILE={{gemfile}} -it gem bash -lc 'bundle install && bundle exec rspec spec/rails'
 
 # Run RuboCop
 lint:

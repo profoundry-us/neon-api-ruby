@@ -28,13 +28,20 @@ jobs:
       - name: Run tests
         run: bundle exec rspec --exclude-pattern "spec/rails/**/*_spec.rb"
 
-  # The Rails integration specs (Combustion) run in an isolated bundle so the
-  # matrix above stays Rails-free; one modern Ruby is enough to exercise the glue.
+  # The Rails integration specs (Combustion) run in isolated bundles so the
+  # matrix above stays Rails-free; a modern Ruby exercises the glue across Rails
+  # majors.
   rails:
     runs-on: ubuntu-latest
-    name: Rails integration
+    strategy:
+      fail-fast: false
+      matrix:
+        gemfile:
+          - gemfiles/rails_7.1.gemfile
+          - gemfiles/rails_8.0.gemfile
+    name: Rails (${{ matrix.gemfile }})
     env:
-      BUNDLE_GEMFILE: gemfiles/rails.gemfile
+      BUNDLE_GEMFILE: ${{ matrix.gemfile }}
     steps:
       - uses: actions/checkout@v4
       - name: Set up Ruby
