@@ -8,6 +8,15 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **`NeonAPI::Auth::SocialAuth`** (and `auth.social`) — server-side social
+  (OAuth) sign-in for managed Neon Auth ("Continue with Google"), with no Node
+  sidecar or client-side JS. `#sign_in` initiates the provider flow and returns
+  the redirect URL plus the challenge to stash; `#redeem_callback` exchanges the
+  one-time `neon_auth_session_verifier` (+ challenge) for the session and an
+  EdDSA JWT. Verified end-to-end against a live project; needs no
+  `NEON_AUTH_COOKIE_SECRET` or project secret (#4).
+- `NeonAPI::Auth::RestClient` base class extracted from `BetterAuthClient` and
+  shared with `SocialAuth` (HTTP, Origin header, cookie jar, error mapping).
 - **`NeonAPI::Auth::BetterAuthClient`** (and `auth.better_auth`) — a server-side
   wrapper around Neon Auth's Better Auth REST API (`sign_up_email`,
   `sign_in_email`, `get_session`, `token`, `sign_out`), with automatic `Origin`

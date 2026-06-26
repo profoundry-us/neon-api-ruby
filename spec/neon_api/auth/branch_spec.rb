@@ -104,4 +104,20 @@ RSpec.describe NeonAPI::Auth::Branch do
       expect(ba.base_url).to eq("https://auth.example/neondb/auth")
     end
   end
+
+  describe "#social" do
+    it "builds a client from an explicit base_url without calling the API" do
+      sa = auth.social(base_url: "https://auth.example/neondb/auth")
+      expect(sa).to be_a(NeonAPI::Auth::SocialAuth)
+      expect(sa.base_url).to eq("https://auth.example/neondb/auth")
+      expect(a_request(:get, "#{APIHelpers::BASE_URL}/#{base}")).not_to have_been_made
+    end
+
+    it "fetches the base_url from config when not given one" do
+      stub_neon(:get, base, body: { base_url: "https://auth.example/neondb/auth" })
+      sa = auth.social
+      expect(sa).to be_a(NeonAPI::Auth::SocialAuth)
+      expect(sa.base_url).to eq("https://auth.example/neondb/auth")
+    end
+  end
 end

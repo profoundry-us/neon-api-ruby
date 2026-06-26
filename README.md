@@ -242,6 +242,51 @@ sign-in → `token` works on one instance; persist `ba.session_cookie` to resume
 session across requests. It wraps `sign_up_email`, `sign_in_email`, `get_session`,
 `token`, and `sign_out`.
 
+### Social sign-in ("Continue with Google")
+
+For server-side social login, `NeonAPI::Auth::SocialAuth` (via `auth.social`)
+initiates the provider flow and redeems the callback. Managed Neon Auth hands the
+result back as a one-time `neon_auth_session_verifier`, and redeeming it also needs
+the **challenge** that Neon sets at initiation — so you stash the challenge (e.g. in
+the Rails session) and pass it back on the callback. No Node sidecar, no cookie
+secret:
+
+```ruby
+class NeonSocialController < ApplicationController
+  # GET /auth/neon/start
+  def start
+    init = neon_social.sign_in(provider: "google",
+                              callback_url: neon_callback_url)
+    session[:neon_challenge] = init.challenge
+    redirect_to init.url, allow_other_host: true
+  end
+
+  # GET /auth/neon/callback?neon_auth_session_verifier=...
+  def callback
+    result = neon_social.redeem_callback(
+      verifier:  params[:neon_auth_session_verifier],
+      challenge: session.delete(:neon_challenge)
+    )
+    claims = NEON_AUTH_VERIFIER.verify(result.jwt)
+    user = User.find_or_create_by!(neon_auth_id: claims.sub) { |u| u.email = claims.email }
+    session[:user_id] = user.id
+    redirect_to root_path, notice: "Signed in with Google"
+  rescue NeonAPI::Auth::SocialAuthError
+    redirect_to login_path, alert: "Sign-in could not be completed"
+  end
+
+  private
+
+  def neon_social = NEON_AUTH.social
+end
+```
+
+> The `callback_url` host must be **allow-listed** in the Neon Console (Auth →
+> Configuration → Domains), or the browser redirect after consent won't reach your
+> app. Configure the Google provider with `auth.oauth_providers.add(id: "google",
+> client_id:, client_secret:)` for production (the shared dev keys show Neon's
+> consent screen).
+
 The full walkthrough — routes, controllers, JWT-protected API requests, and the
 (self-hosted-only) OIDC helper — is in
 [docs/rails_omniauth.md](docs/rails_omniauth.md).

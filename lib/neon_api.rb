@@ -9,7 +9,9 @@ require_relative "neon_api/auth/branch"
 require_relative "neon_api/auth/oauth_providers"
 require_relative "neon_api/auth/users"
 require_relative "neon_api/auth/jwt_verifier"
+require_relative "neon_api/auth/rest_client"
 require_relative "neon_api/auth/better_auth_client"
+require_relative "neon_api/auth/social_auth"
 require_relative "neon_api/omniauth"
 
 # Ruby client for the Neon API (https://neon.tech), with first-class Neon Auth

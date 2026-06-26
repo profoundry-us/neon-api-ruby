@@ -163,6 +163,46 @@ ba.sign_out
 
 See [rails_omniauth.md](rails_omniauth.md) for a full Rails controller example.
 
+## Social sign-in (OAuth)
+
+`auth.social` returns a `NeonAPI::Auth::SocialAuth` for server-side social login
+("Continue with Google") — no Node sidecar, no client-side JS.
+
+Managed Neon Auth hands a completed social sign-in back as a **one-time
+`neon_auth_session_verifier`**. Redeeming it also requires the **challenge** that
+Neon sets at initiation, so the flow is two steps with the challenge stashed in
+between (e.g. the Rails session):
+
+```ruby
+social = auth.social                # base_url fetched from config
+
+# 1. Initiate — redirect the browser to init.url, stash init.challenge
+init = social.sign_in(provider: "google",
+                      callback_url: "https://app.example.com/auth/neon/callback")
+init.url        # => send the browser here
+init.challenge  # => stash (e.g. session[:neon_challenge])
+
+# 2. Redeem — on the callback, with the verifier from the query + the challenge
+result = social.redeem_callback(verifier: verifier_from_query, challenge: stashed_challenge)
+result.jwt            # => EdDSA JWT (verify with JWTVerifier)
+result.session.user   # => the Neon user (user.id == neon_auth.user.id)
+result.session_token  # => session cookie, to resume the Neon session if needed
+```
+
+- **Initiation is server-side**: `sign_in` calls `POST /sign-in/social` and
+  captures the challenge cookie; the browser only follows `init.url`.
+- **Redemption needs no secret**: `redeem_callback` presents the verifier +
+  challenge to `get-session` (Neon decrypts server-side) and exchanges the
+  resulting session for the JWT. You do **not** need `NEON_AUTH_COOKIE_SECRET` or
+  any project secret.
+- **Allow-list the callback host** in the Neon Console (Auth → Configuration →
+  Domains), or the post-consent browser redirect won't reach your app. Redemption
+  itself doesn't depend on it.
+- A bad/expired/already-used verifier raises `NeonAPI::Auth::SocialAuthError`.
+- Configure the provider with your own keys via `auth.oauth_providers.add(id:
+  "google", client_id:, client_secret:)` for production; omit them to use Neon's
+  shared dev keys (which show Neon's consent screen).
+
 ## JWT verification
 
 `NeonAPI::Auth::JWTVerifier` validates Neon Auth JWTs against the project's JWKS.

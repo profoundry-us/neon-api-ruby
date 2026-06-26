@@ -5,6 +5,7 @@ require_relative "oauth_providers"
 require_relative "users"
 require_relative "jwt_verifier"
 require_relative "better_auth_client"
+require_relative "social_auth"
 
 module NeonAPI
   module Auth
@@ -89,6 +90,21 @@ module NeonAPI
       # @return [NeonAPI::Auth::Users]
       def users
         @users ||= Users.new(connection: @connection, base_path: @base_path)
+      end
+
+      # A server-side social (OAuth) sign-in client for this integration —
+      # "Continue with Google" for a server-rendered Rails app. The `base_url`
+      # is read from {#config} the first time it's needed unless you pass it.
+      #
+      #   social = auth.social(base_url: integration.base_url)
+      #   init = social.sign_in(provider: "google", callback_url: "https://app/auth/neon/callback")
+      #
+      # @param base_url [String, nil] override; fetched from {#config} when nil
+      # @param options [Hash] forwarded to {NeonAPI::Auth::SocialAuth}
+      # @return [NeonAPI::Auth::SocialAuth]
+      def social(base_url: nil, **options)
+        url = base_url || config.base_url
+        SocialAuth.new(base_url: url, **options)
       end
 
       # A server-side Better Auth REST client for this integration.
