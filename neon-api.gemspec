@@ -44,7 +44,12 @@ Gem::Specification.new do |spec|
   # JWT verification (NeonAPI::Auth::JWTVerifier) needs the `jwt` gem. Neon Auth
   # signs tokens with EdDSA (Ed25519) by default, which the `jwt` gem supports
   # when `rbnacl` is present; RS256 projects need no extra dependency.
-  spec.add_dependency "jwt", ">= 2.7", "< 4.0"
+  #
+  # Pinned to 2.x: jwt 3.x changed its Ed25519/OKP-JWK algorithm matching and
+  # rejects genuine Neon Auth (EdDSA) tokens with JWT::IncorrectAlgorithm. See
+  # https://github.com/profoundry-us/neon-api-ruby/issues/1. Lift the upper
+  # bound once 3.x EdDSA verification is supported and covered by the EdDSA spec.
+  spec.add_dependency "jwt", "~> 2.7"
 
   spec.add_development_dependency "rake", "~> 13.0"
   spec.add_development_dependency "rspec", "~> 3.13"

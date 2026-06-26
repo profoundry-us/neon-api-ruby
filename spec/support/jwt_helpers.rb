@@ -26,6 +26,27 @@ module JWTHelpers
     JWT.encode(payload, jwk.signing_key, "RS256", kid: jwk.kid)
   end
 
+  # A reusable Ed25519 key as a JWT::JWK with a stable kid. Requires `rbnacl`
+  # (and libsodium at runtime), so only call this from EdDSA specs that have
+  # confirmed availability.
+  def ed25519_jwk(kid: "test-ed25519-1")
+    @ed25519_jwks ||= {}
+    @ed25519_jwks[kid] ||= JWT::JWK.new(RbNaCl::SigningKey.generate, kid: kid)
+  end
+
+  # The JWKS document a live Neon Auth (EdDSA) project serves: OKP/Ed25519 keys
+  # carry an explicit `alg: "EdDSA"`, which `JWT::JWK#export` omits.
+  def eddsa_jwks_document(*jwks)
+    jwks = [ed25519_jwk] if jwks.empty?
+    { keys: jwks.map { |jwk| jwk.export.merge(alg: "EdDSA") } }
+  end
+
+  # Sign a token with the given Ed25519 JWK using EdDSA — the real signature
+  # path a genuine Neon Auth token exercises.
+  def sign_token_eddsa(payload, jwk: ed25519_jwk)
+    JWT.encode(payload, jwk.signing_key, "EdDSA", kid: jwk.kid)
+  end
+
   # Default valid Neon-Auth-shaped claims.
   def neon_claims(overrides = {})
     now = Time.now.to_i

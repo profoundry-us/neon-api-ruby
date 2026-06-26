@@ -14,10 +14,10 @@ single, dependency-light gem needs.
   dependency layer stays cached and only rebuilds when the dependencies change.
 - **`docker-compose.yml`** defines one service, `gem`. It mounts the working
   tree into the container at `/app`, so edits on the host are live inside the
-  container. The installed bundle lives in a named `bundle` volume so it isn't
-  clobbered by the mount and survives rebuilds. The container itself just stays
-  alive (`tini` + `tail -f /dev/null`); real work happens via `docker compose
-  exec`.
+  container. Dependencies are baked into the image at `/usr/local/bundle` (not
+  under `/app`, so the mount doesn't shadow them); change the Gemfile/gemspec
+  and `just rebuild` to reinstall. The container itself just stays alive
+  (`tini` + `tail -f /dev/null`); real work happens via `docker compose exec`.
 - **`justfile`** wraps the common `docker compose` invocations so you rarely
   type Docker commands directly.
 
@@ -66,15 +66,16 @@ Run `just` with no arguments to list every available command.
 
 ## Notes
 
-- After changing `Gemfile` or the gemspec, run `just bundle` to update the
-  bundle in the running container (or `just rebuild` to rebake the image).
+- After changing `Gemfile` or the gemspec, run `just rebuild` to reinstall
+  dependencies into the image. (`just bundle` re-bundles inside the running
+  container for a quick iteration, but that doesn't persist once the container
+  is recreated — `just rebuild` is the durable path.)
 - `Gemfile.lock` is committed, so the image and your host resolve to the same
-  dependency versions. After changing the gemspec or Gemfile, run `just bundle`
-  (or `just rebuild`) and commit the updated lockfile.
-- The image installs `build-essential` so native-extension gems compile. The
-  optional EdDSA JWT path (`rbnacl`/libsodium) is not installed by default; if
-  you enable that gem, add `libsodium-dev` to the `apt-get install` line in the
-  `Dockerfile`.
+  dependency versions. After a dependency change, run `just bundle` to refresh
+  the lockfile in the working tree and commit it.
+- The image installs `build-essential` and `libsodium-dev`, so native-extension
+  gems compile and `rbnacl` (the EdDSA/Ed25519 path used to verify Neon Auth
+  JWTs) works out of the box — including the EdDSA verification spec.
 
 ## Later: a demo / sandbox app
 

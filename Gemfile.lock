@@ -2,7 +2,7 @@ PATH
   remote: .
   specs:
     neon-api (0.1.0)
-      jwt (>= 2.7, < 4.0)
+      jwt (~> 2.7)
 
 GEM
   remote: https://rubygems.org/
@@ -16,9 +16,10 @@ GEM
       bigdecimal
       rexml
     diff-lcs (1.6.2)
+    ffi (1.17.4)
     hashdiff (1.2.1)
     json (2.20.0)
-    jwt (3.2.0)
+    jwt (2.10.3)
       base64
     language_server-protocol (3.17.0.5)
     lint_roller (1.1.0)
@@ -31,6 +32,8 @@ GEM
     racc (1.8.1)
     rainbow (3.1.1)
     rake (13.4.2)
+    rbnacl (7.1.2)
+      ffi (~> 1)
     regexp_parser (2.12.0)
     rexml (3.4.4)
     rspec (3.13.2)
@@ -80,6 +83,7 @@ PLATFORMS
 DEPENDENCIES
   neon-api!
   rake
+  rbnacl (~> 7.1)
   rspec
   rubocop
   rubocop-rspec

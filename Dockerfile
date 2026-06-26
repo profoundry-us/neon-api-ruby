@@ -19,6 +19,7 @@ RUN apt-get update -qq && apt-get install -y --no-install-recommends \
     build-essential \
     curl \
     git \
+    libsodium-dev \
     tini \
     vim \
   && rm -rf /var/lib/apt/lists/*

@@ -11,9 +11,10 @@ group :development, :test do
   gem "rubocop"
   gem "rubocop-rspec"
   gem "webmock"
-end
 
-# Optional: Ed25519 (EdDSA) support for verifying Neon Auth JWTs.
-# Neon Auth signs tokens with EdDSA by default. Uncomment to enable local
-# verification of those tokens with NeonAPI::Auth::JWTVerifier.
-# gem "rbnacl", "~> 7.1"
+  # Ed25519 (EdDSA) support so the test suite can exercise real Neon Auth-shaped
+  # token verification (see spec/neon_api/auth/jwt_verifier_eddsa_spec.rb).
+  # Requires libsodium present at runtime. Apps verifying EdDSA tokens add this
+  # to their own Gemfile; it is not a runtime dependency of the gem itself.
+  gem "rbnacl", "~> 7.1"
+end

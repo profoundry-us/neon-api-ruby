@@ -16,6 +16,10 @@ jobs:
     name: Ruby ${{ matrix.ruby }}
     steps:
       - uses: actions/checkout@v4
+      # rbnacl binds to libsodium at runtime; needed so the EdDSA verification
+      # spec (the issue #1 regression guard) runs rather than skips.
+      - name: Install libsodium
+        run: sudo apt-get update && sudo apt-get install -y libsodium-dev
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1
         with:

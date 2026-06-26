@@ -9,13 +9,10 @@ services:
       context: .
       dockerfile: Dockerfile
     volumes:
-      # Mount the whole repo so code changes are reflected immediately.
+      # Mount the whole repo so code changes are reflected immediately. The
+      # bundle lives at /usr/local/bundle (outside /app), so it is not shadowed
+      # by this mount; dependencies are baked in at build time. After changing
+      # the Gemfile/gemspec, `just rebuild` to reinstall.
       - .:/app
-      # Keep the container's bundle out of the host-mounted tree so it isn't
-      # clobbered by the host and persists across rebuilds.
-      - bundle:/usr/local/bundle
     tty: true
     stdin_open: true
-
-volumes:
-  bundle:
