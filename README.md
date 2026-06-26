@@ -286,12 +286,27 @@ client.connection.post("projects/#{id}/branches/#{bid}/auth/send_test_email")
 
 ## Development
 
+On the host (needs a local Ruby toolchain):
+
 ```bash
 bin/setup            # or: bundle install
 bundle exec rspec    # run the tests (fully mocked, no network)
 bundle exec rubocop  # lint
 bundle exec rake     # both
 ```
+
+Or do everything in Docker — no system Ruby required, just Docker and
+[`just`](https://github.com/casey/just):
+
+```bash
+just up      # build the image and start the container
+just test    # run the tests
+just lint    # run RuboCop
+just check   # spec + rubocop (the default rake task)
+just console # IRB with the gem loaded
+```
+
+See [docs/docker.md](docs/docker.md) for the full command list and notes.
 
 Tests use [WebMock](https://github.com/bblimke/webmock) so they never touch the
 network — the equivalent of the Python client's VCR cassettes.

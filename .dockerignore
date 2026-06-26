@@ -1,0 +1,17 @@
+# Keep the build context small and the image clean. The working tree is
+# mounted at runtime, so nothing here needs to be baked into the image.
+.git/
+.github/
+.bundle/
+.yardoc/
+_yardoc/
+coverage/
+doc/
+pkg/
+tmp/
+*.gem
+.DS_Store
+.rspec_status
+.idea/
+.vscode/
+.claude/

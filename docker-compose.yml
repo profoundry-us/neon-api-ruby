@@ -1,0 +1,21 @@
+services:
+
+  # The gem development container. It builds the dependencies into the image
+  # and mounts the working tree on top, so host edits are live inside the
+  # container. The container just stays alive (tini + tail) and we exec into
+  # it for tests, lint, and a console — see the justfile.
+  gem:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      # Mount the whole repo so code changes are reflected immediately.
+      - .:/app
+      # Keep the container's bundle out of the host-mounted tree so it isn't
+      # clobbered by the host and persists across rebuilds.
+      - bundle:/usr/local/bundle
+    tty: true
+    stdin_open: true
+
+volumes:
+  bundle:
