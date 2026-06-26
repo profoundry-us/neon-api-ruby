@@ -6,6 +6,32 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- **`NeonAPI::Auth::BetterAuthClient`** (and `auth.better_auth`) — a server-side
+  wrapper around Neon Auth's Better Auth REST API (`sign_up_email`,
+  `sign_in_email`, `get_session`, `token`, `sign_out`), with automatic `Origin`
+  handling and a cookie jar. This is the supported path for server-rendered Rails
+  sign-in, since managed Neon Auth is not an OIDC provider (#2).
+- Offline EdDSA (Ed25519) verification spec exercising a real key, a Neon-shaped
+  OKP JWKS, and the real `JWT.decode` — the regression guard for the jwt 3.x bug.
+
+### Changed
+
+- Pinned `jwt` to `~> 2.7` (was `>= 2.7, < 4.0`). jwt 3.x rejects genuine Neon
+  Auth EdDSA tokens with `JWT::IncorrectAlgorithm` (#1).
+- Documentation now references `neon_auth.user` (Better Auth's native table),
+  not the legacy `neon_auth.users_sync` name, and clarifies that `config` returns
+  a subset of `enable`'s fields (#3).
+- `NeonAPI::OmniAuth.openid_connect_options` is documented as **not** working
+  against managed Neon Auth (no OIDC endpoints); it remains for self-hosted
+  Better Auth with the oidc-provider plugin or another real OIDC provider (#2).
+
+### Fixed
+
+- Real EdDSA token verification now works out of the box via the `jwt` 2.x pin
+  (#1).
+
 ## [0.1.0] - 2026-06-25
 
 Initial release. Focus is on the Neon Auth surface for Ruby on Rails apps.

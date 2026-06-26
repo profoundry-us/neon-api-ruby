@@ -130,6 +130,36 @@ table is `neon_auth.user`, with Better Auth's native (camelCase) columns —
 SELECT id, email, name FROM neon_auth.user;
 ```
 
+## Server-side sign-in (Better Auth)
+
+`auth.better_auth` returns a `NeonAPI::Auth::BetterAuthClient` — a wrapper around
+Better Auth's server-side REST API. This is the supported path for signing users
+in from a server-rendered Rails app, because managed Neon Auth is **not** an OIDC
+provider (no `/authorize`, OIDC `/token`, `/userinfo`, or discovery document — so
+`omniauth_openid_connect` can't be used against it).
+
+```ruby
+ba = auth.better_auth                       # base_url fetched from config
+# or: auth.better_auth(base_url: integration.base_url)   # no extra API call
+
+ba.sign_up_email(name: "Ada", email: "ada@example.com", password: "Passw0rd-123456")
+ba.sign_in_email(email: "ada@example.com", password: "Passw0rd-123456")
+ba.token        # => the EdDSA JWT (verify it with JWTVerifier)
+ba.get_session  # => current session
+ba.sign_out
+```
+
+- Better Auth's endpoints enforce a CSRF guard requiring an `Origin` header
+  matching the auth host. The client sends it automatically (derived from
+  `base_url`); override with `better_auth(origin: "https://app.example.com")`.
+- Sign-in sets a session cookie; the client keeps a cookie jar, so
+  `sign_in_email` → `token` works on one instance. Persist `ba.session_cookie`
+  (and restore it with `ba.cookies = saved`) to resume a session across requests.
+- Errors map to the same `NeonAPI::APIError` subclasses as the management API
+  (e.g. a bad password raises `NeonAPI::AuthenticationError`).
+
+See [rails_omniauth.md](rails_omniauth.md) for a full Rails controller example.
+
 ## JWT verification
 
 `NeonAPI::Auth::JWTVerifier` validates Neon Auth JWTs against the project's JWKS.

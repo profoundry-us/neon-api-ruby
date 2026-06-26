@@ -3,18 +3,26 @@
 require "uri"
 
 module NeonAPI
-  # Helpers for wiring Neon Auth into a Rails app via OmniAuth.
+  # Helpers for treating Neon Auth as an OIDC provider via the
+  # `omniauth_openid_connect` strategy.
   #
-  # Neon Auth issues standards-based JWTs and exposes a JWKS endpoint, which maps
-  # cleanly onto the `omniauth_openid_connect` strategy. These helpers translate a
-  # Neon Auth integration (the object returned by {NeonAPI::Auth::Branch#enable}
-  # or {NeonAPI::Auth::Branch#config}) into the options hash that strategy expects,
-  # so you don't have to hand-transcribe URLs.
+  # @note **This does not work against managed Neon Auth (the `better_auth`
+  #   backend).** Managed Neon Auth is not an OIDC provider — it serves no OIDC
+  #   discovery document, `/authorize`, `/token` (OIDC), or `/userinfo` endpoint
+  #   (only JWKS), and offers no third-party OAuth client registration, so this
+  #   relying-party flow cannot complete. See
+  #   https://github.com/profoundry-us/neon-api-ruby/issues/2.
   #
-  # The endpoints follow Neon Auth's hosted-auth base URL. If your project uses a
-  # non-default layout, every derived value can be overridden via keyword args.
+  #   For server-rendered Rails login on managed Neon Auth, use
+  #   {NeonAPI::Auth::BetterAuthClient} (sign-in → token) plus
+  #   {NeonAPI::Auth::JWTVerifier}. These helpers remain only for a self-hosted
+  #   Better Auth deployment that has enabled the (non-managed) oidc-provider
+  #   plugin, or another genuine OIDC provider fronting Neon.
   #
-  # @example config/initializers/omniauth.rb
+  # The endpoints follow Neon Auth's hosted-auth base URL. If your provider uses
+  # a non-default layout, every derived value can be overridden via keyword args.
+  #
+  # @example config/initializers/omniauth.rb (self-hosted OIDC only)
   #   integration = Rails.application.config.x.neon_auth   # cached integration
   #   Rails.application.config.middleware.use OmniAuth::Builder do
   #     provider :openid_connect, NeonAPI::OmniAuth.openid_connect_options(

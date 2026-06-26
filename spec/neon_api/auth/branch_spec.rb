@@ -88,4 +88,20 @@ RSpec.describe NeonAPI::Auth::Branch do
       expect(verifier).to be_a(NeonAPI::Auth::JWTVerifier)
     end
   end
+
+  describe "#better_auth" do
+    it "builds a client from an explicit base_url without calling the API" do
+      ba = auth.better_auth(base_url: "https://auth.example/neondb/auth")
+      expect(ba).to be_a(NeonAPI::Auth::BetterAuthClient)
+      expect(ba.base_url).to eq("https://auth.example/neondb/auth")
+      expect(a_request(:get, "#{APIHelpers::BASE_URL}/#{base}")).not_to have_been_made
+    end
+
+    it "fetches the base_url from config when not given one" do
+      stub_neon(:get, base, body: { base_url: "https://auth.example/neondb/auth" })
+      ba = auth.better_auth
+      expect(ba).to be_a(NeonAPI::Auth::BetterAuthClient)
+      expect(ba.base_url).to eq("https://auth.example/neondb/auth")
+    end
+  end
 end

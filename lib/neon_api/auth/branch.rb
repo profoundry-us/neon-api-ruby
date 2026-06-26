@@ -4,6 +4,7 @@ require_relative "../object"
 require_relative "oauth_providers"
 require_relative "users"
 require_relative "jwt_verifier"
+require_relative "better_auth_client"
 
 module NeonAPI
   module Auth
@@ -88,6 +89,24 @@ module NeonAPI
       # @return [NeonAPI::Auth::Users]
       def users
         @users ||= Users.new(connection: @connection, base_path: @base_path)
+      end
+
+      # A server-side Better Auth REST client for this integration.
+      #
+      # This is the working path for server-rendered Rails login on managed
+      # Neon Auth (sign-up / sign-in / get-session / token). The `base_url` is
+      # read from {#config} the first time it's needed unless you pass it.
+      #
+      #   ba = auth.better_auth(base_url: integration.base_url)
+      #   ba.sign_in_email(email: email, password: password)
+      #   claims = auth.jwt_verifier.verify(ba.token)
+      #
+      # @param base_url [String, nil] override; fetched from {#config} when nil
+      # @param options [Hash] forwarded to {NeonAPI::Auth::BetterAuthClient}
+      # @return [NeonAPI::Auth::BetterAuthClient]
+      def better_auth(base_url: nil, **options)
+        url = base_url || config.base_url
+        BetterAuthClient.new(base_url: url, **options)
       end
 
       # A runtime JWT verifier wired to this integration's JWKS URL.

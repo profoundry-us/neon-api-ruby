@@ -7,9 +7,9 @@ This is the Ruby counterpart to the official
 [`neon-api-python`](https://github.com/neondatabase/neon-api-python) client. It
 mirrors that library's management API surface (projects, branches, API keys, …)
 and goes further by wrapping the **Neon Auth** endpoints — enabling the
-integration, configuring OAuth providers, managing users, and verifying Neon
-Auth JWTs at runtime — so you can drop Neon Auth into a Rails app, including via
-[OmniAuth](https://github.com/omniauth/omniauth).
+integration, configuring OAuth providers, managing users, signing users in
+server-side, and verifying Neon Auth JWTs at runtime — so you can drop Neon Auth
+into a Rails app.
 
 > **Status:** `0.1.0`. The authentication surface is the priority and is
 > implemented and tested; the broader management API is being filled in to stay
@@ -27,7 +27,7 @@ Auth JWTs at runtime — so you can drop Neon Auth into a Rails app, including v
   - [Configure OAuth providers](#configure-oauth-providers)
   - [Manage users](#manage-users)
   - [Verify JWTs at runtime](#verify-jwts-at-runtime)
-- [Rails + OmniAuth](#rails--omniauth)
+- [Rails sign-in (server-side)](#rails-sign-in-server-side)
 - [Management API](#management-api)
 - [Error handling](#error-handling)
 - [Calling endpoints that aren't wrapped yet](#calling-endpoints-that-arent-wrapped-yet)
@@ -210,27 +210,45 @@ end
 
 See [docs/neon_auth.md](docs/neon_auth.md) for the full reference.
 
-## Rails + OmniAuth
+## Rails sign-in (server-side)
 
-Neon Auth's JWKS + hosted endpoints map cleanly onto the
-[`omniauth_openid_connect`](https://github.com/omniauth/omniauth_openid_connect)
-strategy. `NeonAPI::OmniAuth` turns an integration into the options hash that
-strategy expects:
+Managed Neon Auth (the `better_auth` backend) is **not** an OIDC provider — it
+exposes no `/authorize`, OIDC `/token`, `/userinfo`, or discovery document, so an
+`omniauth_openid_connect` relying-party flow can't complete against it. The path
+that works for a server-rendered Rails app is Better Auth's server-side REST API,
+wrapped by `NeonAPI::Auth::BetterAuthClient`: sign the user in, exchange the
+session for a JWT, then verify it.
 
 ```ruby
-# config/initializers/omniauth.rb
-Rails.application.config.middleware.use OmniAuth::Builder do
-  provider :openid_connect, NeonAPI::OmniAuth.openid_connect_options(
-    integration: NEON_AUTH_INTEGRATION,   # the enable/config response (cached)
-    client_id: ENV.fetch("NEON_AUTH_CLIENT_ID"),
-    client_secret: ENV.fetch("NEON_AUTH_CLIENT_SECRET"),
-    redirect_uri: "https://app.example.com/auth/openid_connect/callback"
-  )
+class SessionsController < ApplicationController
+  def create
+    ba = NEON_AUTH.better_auth   # base_url pulled from the integration
+    ba.sign_in_email(email: params[:email], password: params[:password])
+
+    claims = NEON_AUTH_VERIFIER.verify(ba.token)   # the EdDSA JWT
+    user = User.find_or_create_by!(neon_auth_id: claims.sub) do |u|
+      u.email = claims.email
+    end
+    session[:user_id] = user.id
+    redirect_to root_path, notice: "Signed in"
+  rescue NeonAPI::AuthenticationError
+    redirect_to login_path, alert: "Invalid email or password"
+  end
 end
 ```
 
-The full walkthrough — controller, session, and JWT-protected API requests — is
-in [docs/rails_omniauth.md](docs/rails_omniauth.md).
+`BetterAuthClient` handles the required `Origin` header and keeps a cookie jar, so
+sign-in → `token` works on one instance; persist `ba.session_cookie` to resume a
+session across requests. It wraps `sign_up_email`, `sign_in_email`, `get_session`,
+`token`, and `sign_out`.
+
+The full walkthrough — routes, controllers, JWT-protected API requests, and the
+(self-hosted-only) OIDC helper — is in
+[docs/rails_omniauth.md](docs/rails_omniauth.md).
+
+> `NeonAPI::OmniAuth.openid_connect_options` remains for a **self-hosted** Better
+> Auth deployment that runs the (non-managed) oidc-provider plugin, or another
+> real OIDC provider fronting Neon. It does not work against managed Neon Auth.
 
 ## Management API
 
