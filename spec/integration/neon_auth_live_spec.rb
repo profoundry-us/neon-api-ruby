@@ -33,9 +33,20 @@ RSpec.describe "Neon Auth live integration", :integration do
 
   let(:client) { NeonAPI.from_environ }
 
+  # Neon's GET /projects requires an org_id for org-scoped accounts. Discover the
+  # first organization unless NEON_ORG_ID is provided; fall back to the
+  # un-scoped listing for personal accounts.
+  let(:org_id) do
+    ENV["NEON_ORG_ID"] || begin
+      orgs = Array(client.connection.get("users/me/organizations").to_h["organizations"])
+      orgs.first&.fetch("id", nil)
+    end
+  end
+
   let(:project_id) do
     ENV["NEON_PROJECT_ID"] || begin
-      first = Array(client.projects.to_h["projects"]).first
+      query = org_id ? { org_id: org_id } : {}
+      first = Array(client.projects(**query).to_h["projects"]).first
       raise "no projects found for this NEON_API_KEY; set NEON_PROJECT_ID" unless first
 
       first["id"]
