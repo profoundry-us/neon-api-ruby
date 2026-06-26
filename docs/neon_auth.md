@@ -42,12 +42,15 @@ integration = auth.enable(auth_provider: "better_auth", database_name: "neondb")
 | `secret_server_key` | **secret** server key — keep private |
 | `jwks_url` | JWKS endpoint for verifying tokens |
 | `schema_name` | DB schema users sync into (`neon_auth`) |
-| `table_name` | DB table users sync into (legacy `users_sync` name) |
+| `table_name` | reported as `users_sync`, but see the note below |
 | `base_url` | hosted auth base URL |
 
-> On the current `better_auth` backend the synced identity table is
-> `neon_auth.user` (Better Auth's native schema), regardless of the legacy
-> `table_name` value — read identity from `neon_auth.user` (see [Users](#users)).
+> ⚠️ On the `better_auth` backend, `enable` still reports
+> `table_name: "users_sync"`, but **that table does not exist**. The live
+> `neon_auth` schema is Better Auth's native one — `user`, `account`, `session`,
+> `organization`, … — so read identity from `neon_auth.user` (see
+> [Users](#users)). `users_sync` is the legacy Stack Auth name. Verified against
+> a live project: `claims.sub == neon_auth.user.id`.
 
 `create` is an alias for `enable`.
 
