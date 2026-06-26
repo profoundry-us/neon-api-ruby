@@ -1,0 +1,58 @@
+plugins:
+  - rubocop-rspec
+
+AllCops:
+  TargetRubyVersion: 3.0
+  NewCops: enable
+  SuggestExtensions: false
+  Exclude:
+    - "vendor/**/*"
+    - "tmp/**/*"
+    - "pkg/**/*"
+
+# This is a documentation- and example-heavy library; long descriptive blocks
+# and the breadth of the API surface make a few of the default metrics noisy
+# without improving the code.
+Metrics/MethodLength:
+  Max: 30
+Metrics/AbcSize:
+  Max: 30
+Metrics/ClassLength:
+  Max: 250
+Metrics/ParameterLists:
+  Max: 6
+  CountKeywordArgs: false
+Metrics/BlockLength:
+  Exclude:
+    - "spec/**/*"
+    - "*.gemspec"
+
+Style/Documentation:
+  Enabled: false
+
+# We intentionally declare development dependencies in the gemspec so the gem is
+# self-describing; they are mirrored in the Gemfile for convenience.
+Gemspec/DevelopmentDependencies:
+  Enabled: false
+
+# Our file names keep natural acronym casing (oauth_providers, omniauth) rather
+# than RuboCop's preferred o_auth_providers / omni_auth.
+RSpec/SpecFilePathFormat:
+  Enabled: false
+Style/StringLiterals:
+  EnforcedStyle: double_quotes
+Style/StringLiteralsInInterpolation:
+  EnforcedStyle: double_quotes
+Layout/LineLength:
+  Max: 110
+  Exclude:
+    - "spec/**/*"
+
+RSpec/ExampleLength:
+  Enabled: false
+RSpec/MultipleExpectations:
+  Max: 8
+RSpec/NestedGroups:
+  Max: 5
+RSpec/MultipleMemoizedHelpers:
+  Max: 10
