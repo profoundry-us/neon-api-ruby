@@ -117,7 +117,7 @@ end
 ```
 
 `neon_auth_id` (the OmniAuth `uid`) is the Neon Auth user id and matches
-`neon_auth.users_sync.id` in your database, so server-side data joins line up.
+`neon_auth.user.id` in your database, so server-side data joins line up.
 
 ---
 
@@ -193,5 +193,6 @@ end
   [neon_auth.md](neon_auth.md#eddsa-dependency).
 - **Key rotation:** the verifier refreshes the JWKS automatically when it sees a
   new key id, so rotations don't require a deploy.
-- **Reads from the DB:** Neon Auth syncs users into `neon_auth.users_sync`. You
-  can read profile data straight from Postgres instead of calling the API.
+- **Reads from the DB:** Neon Auth syncs users into `neon_auth.user` (Better
+  Auth's native table; camelCase columns). You can read profile data straight
+  from Postgres instead of calling the API.

@@ -22,7 +22,7 @@ module NeonAPI
     #
     # @example
     #   claims = verifier.verify(token)
-    #   claims.sub      #=> the Neon Auth user id (neon_auth.users_sync.id)
+    #   claims.sub      #=> the Neon Auth user id (neon_auth.user.id)
     #   claims.email
     #   claims["role"]  #=> "authenticated"
     class Claims

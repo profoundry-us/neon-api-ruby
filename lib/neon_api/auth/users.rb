@@ -6,9 +6,9 @@ module NeonAPI
   module Auth
     # Manage Neon Auth users for a branch's integration.
     #
-    # Neon Auth keeps user state in your database (the `neon_auth.users_sync`
-    # table by default), so for read-heavy work you can also query that table
-    # directly from Rails. This API is for administrative actions: creating users,
+    # Neon Auth keeps user state in your database (the `neon_auth.user` table on
+    # the `better_auth` backend), so for read-heavy work you can also query that
+    # table directly from Rails. This API is for administrative actions: creating users,
     # changing roles, and deleting users.
     #
     # Accessed via `client.auth(project_id, branch_id).users`.

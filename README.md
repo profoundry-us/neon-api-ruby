@@ -122,9 +122,15 @@ integration.jwks_url          #=> "https://.../.well-known/jwks.json"
 integration.pub_client_key    #=> publishable client key (safe for the frontend)
 integration.secret_server_key #=> SECRET — store securely, shown only once
 integration.schema_name       #=> "neon_auth"
-integration.table_name        #=> "users_sync"
 integration.base_url          #=> hosted auth base URL
 ```
+
+> `pub_client_key`, `secret_server_key`, `schema_name`, and `table_name` are
+> returned by `enable` only — `auth.config` returns a smaller set (no keys, no
+> schema/table). Access maybe-absent fields with `integration["schema_name"]`
+> or `integration.to_h`, which return `nil` rather than raising. On the current
+> `better_auth` backend, the synced identity table is **`neon_auth.user`** (see
+> [Manage users](#manage-users)); `users_sync` is the legacy Stack Auth name.
 
 Inspect or update it later:
 
@@ -167,8 +173,13 @@ users.update(user_id, display_name: "Ada L.")
 users.delete(user_id)
 ```
 
-Neon Auth also syncs users into `neon_auth.users_sync` in your database, so for
-reads you can query that table directly from Rails.
+Neon Auth also syncs users into `neon_auth.user` in your database, so for reads
+you can query that table directly from Rails. Note Better Auth's columns are
+camelCase (`emailVerified`, `createdAt`, ...):
+
+```sql
+SELECT id, email, name FROM neon_auth.user;
+```
 
 ### Verify JWTs at runtime
 
@@ -181,7 +192,7 @@ verifier = NeonAPI::Auth::JWTVerifier.new(jwks_url: ENV.fetch("NEON_AUTH_JWKS_UR
 verifier = auth.jwt_verifier(jwks_url: integration.jwks_url)
 
 claims = verifier.verify(token)
-claims.sub    #=> Neon Auth user id (matches neon_auth.users_sync.id)
+claims.sub    #=> Neon Auth user id (matches neon_auth.user.id)
 claims.email
 claims.role   #=> "authenticated"
 ```

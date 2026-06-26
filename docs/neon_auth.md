@@ -42,8 +42,12 @@ integration = auth.enable(auth_provider: "better_auth", database_name: "neondb")
 | `secret_server_key` | **secret** server key — keep private |
 | `jwks_url` | JWKS endpoint for verifying tokens |
 | `schema_name` | DB schema users sync into (`neon_auth`) |
-| `table_name` | DB table users sync into (`users_sync`) |
+| `table_name` | DB table users sync into (legacy `users_sync` name) |
 | `base_url` | hosted auth base URL |
+
+> On the current `better_auth` backend the synced identity table is
+> `neon_auth.user` (Better Auth's native schema), regardless of the legacy
+> `table_name` value — read identity from `neon_auth.user` (see [Users](#users)).
 
 `create` is an alias for `enable`.
 
@@ -52,6 +56,19 @@ integration = auth.enable(auth_provider: "better_auth", database_name: "neondb")
 ```ruby
 auth.config.jwks_url
 auth.config.base_url
+```
+
+`config` returns a **subset** of what `enable` returns:
+`auth_provider`, `auth_provider_project_id`, `base_url`, `branch_id`,
+`created_at`, `db_name`, `jwks_url`, `name`, `owned_by`. It does **not** include
+`pub_client_key` / `secret_server_key` (shown only once, by `enable`) nor
+`schema_name` / `table_name`. Method-style access to an absent key raises
+`NoMethodError`, so reach for maybe-absent fields with the hash form, which
+returns `nil`:
+
+```ruby
+auth.config["schema_name"]   #=> nil (not present on config)
+auth.config.to_h             # the full hash, for safe inspection
 ```
 
 ### `update(**attributes)`
@@ -104,10 +121,13 @@ users.set_role(user_id, role: "admin")  # convenience around update
 users.delete(user_id)
 ```
 
-For reads, you can also query the synced table directly:
+For reads, you can also query the synced table directly. On `better_auth` the
+table is `neon_auth.user`, with Better Auth's native (camelCase) columns —
+`id`, `name`, `email`, `emailVerified`, `image`, `createdAt`, `updatedAt`,
+`role`, `banned`, `banReason`, `banExpires`:
 
 ```sql
-SELECT id, email, name FROM neon_auth.users_sync WHERE deleted_at IS NULL;
+SELECT id, email, name FROM neon_auth.user;
 ```
 
 ## JWT verification
@@ -152,7 +172,7 @@ so a single `rescue NeonAPI::Auth::InvalidTokenError` catches all token failures
 ### Claims
 
 ```ruby
-claims.sub        # user id (also: claims.user_id) — matches users_sync.id
+claims.sub        # user id (also: claims.user_id) — matches neon_auth.user.id
 claims.email
 claims.role       # typically "authenticated"
 claims.expires_at # Time
