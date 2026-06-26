@@ -58,6 +58,7 @@ Run `just` with no arguments to list every available command.
 | Start the container                    | `just up`                |
 | Re-install gems after editing deps     | `just bundle`            |
 | Run tests                              | `just test`              |
+| Run Rails integration specs            | `just test-rails`        |
 | Lint / auto-fix                        | `just lint` / `just lint-fix` |
 | Console                                | `just console`           |
 | Shell                                  | `just shell`             |

@@ -1,0 +1,18 @@
+# frozen_string_literal: true
+
+# Isolated bundle for the Combustion-based Rails integration specs (spec/rails),
+# kept out of the main Gemfile so the core gem's Ruby 3.0–3.3 matrix stays
+# Rails-free. Run with:
+#
+#   BUNDLE_GEMFILE=gemfiles/rails.gemfile bundle install
+#   BUNDLE_GEMFILE=gemfiles/rails.gemfile bundle exec rspec spec/rails
+#
+# This bundle is isolated and exercised in a dedicated CI job on a modern Ruby,
+# so it doesn't constrain the core gem's Ruby 3.0–3.3 matrix. Rails is held to
+# the 7.x series for stability; the integration glue under test is
+# Rails-version-agnostic.
+eval_gemfile File.expand_path("../Gemfile", __dir__)
+
+gem "combustion", "~> 1.5"
+gem "rack-test", "~> 2.1"
+gem "rails", "~> 7.1"

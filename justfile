@@ -51,9 +51,13 @@ shell:
 console:
     docker compose exec -it gem bin/console
 
-# Run the full RSpec suite
+# Run the RSpec suite (excludes spec/rails — see test-rails)
 test:
-    docker compose exec -it gem bundle exec rspec
+    docker compose exec -it gem bundle exec rspec --exclude-pattern "spec/rails/**/*_spec.rb"
+
+# Run the Combustion-based Rails integration specs (isolated bundle)
+test-rails:
+    docker compose exec -e BUNDLE_GEMFILE=gemfiles/rails.gemfile -it gem bash -lc 'bundle install && bundle exec rspec spec/rails'
 
 # Run RuboCop
 lint:

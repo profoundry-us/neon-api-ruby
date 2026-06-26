@@ -26,7 +26,24 @@ jobs:
           ruby-version: ${{ matrix.ruby }}
           bundler-cache: true
       - name: Run tests
-        run: bundle exec rspec
+        run: bundle exec rspec --exclude-pattern "spec/rails/**/*_spec.rb"
+
+  # The Rails integration specs (Combustion) run in an isolated bundle so the
+  # matrix above stays Rails-free; one modern Ruby is enough to exercise the glue.
+  rails:
+    runs-on: ubuntu-latest
+    name: Rails integration
+    env:
+      BUNDLE_GEMFILE: gemfiles/rails.gemfile
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+          bundler-cache: true
+      - name: Run Rails integration specs
+        run: bundle exec rspec spec/rails
 
   lint:
     runs-on: ubuntu-latest
