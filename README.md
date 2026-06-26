@@ -287,6 +287,31 @@ end
 > client_id:, client_secret:)` for production (the shared dev keys show Neon's
 > consent screen).
 
+### Mountable Rack handler (mount and go)
+
+Don't want to write the two routes yourself? `NeonAPI::Auth::RackHandler` is a
+Rack app that serves the `start` and `callback` routes for you; you provide a
+block that maps the verified identity to a local user:
+
+```ruby
+# config/initializers/neon_auth.rb
+NEON_SOCIAL_HANDLER = NeonAPI::Auth::RackHandler.new(
+  social:       NEON_AUTH.social,
+  verifier:     NEON_AUTH_VERIFIER,
+  callback_url: "https://app.example.com/auth/neon/callback"
+) do |success|
+  user = User.find_or_create_by!(neon_auth_id: success.claims.sub) { |u| u.email = success.claims.email }
+  success.request.session[:user_id] = user.id
+  "/"   # redirect target on success
+end
+
+# config/routes.rb
+mount NEON_SOCIAL_HANDLER => "/auth/neon"   # → /auth/neon/start and /auth/neon/callback
+```
+
+It stashes the challenge in the Rack session between the two requests (so a
+session middleware is required — Rails has one) and loads `rack` lazily.
+
 The full walkthrough — routes, controllers, JWT-protected API requests, and the
 (self-hosted-only) OIDC helper — is in
 [docs/rails_omniauth.md](docs/rails_omniauth.md).

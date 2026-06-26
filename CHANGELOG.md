@@ -17,6 +17,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `NEON_AUTH_COOKIE_SECRET` or project secret (#4).
 - `NeonAPI::Auth::RestClient` base class extracted from `BetterAuthClient` and
   shared with `SocialAuth` (HTTP, Origin header, cookie jar, error mapping).
+- **`NeonAPI::Auth::RackHandler`** — an optional Rack-mountable handler that
+  serves the social `start` + `callback` routes (mirrors Neon's
+  `createNeonAuth().handler()`); you provide a block mapping the verified claims
+  to a local user. `rack` is loaded lazily and is not a runtime dependency (#4).
 - **`NeonAPI::Auth::BetterAuthClient`** (and `auth.better_auth`) — a server-side
   wrapper around Neon Auth's Better Auth REST API (`sign_up_email`,
   `sign_in_email`, `get_session`, `token`, `sign_out`), with automatic `Origin`
