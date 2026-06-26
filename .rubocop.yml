@@ -9,6 +9,9 @@ AllCops:
     - "vendor/**/*"
     - "tmp/**/*"
     - "pkg/**/*"
+    # Generator templates are example code for the *generated* app (and contain
+    # ERB), not gem source — they should not be linted as Ruby.
+    - "lib/generators/**/templates/**/*"
 
 # This is a documentation- and example-heavy library; long descriptive blocks
 # and the breadth of the API surface make a few of the default metrics noisy

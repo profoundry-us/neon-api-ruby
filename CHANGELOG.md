@@ -8,6 +8,17 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **Optional Rails layer** so apps stop hand-rolling the glue (#5):
+  - `NeonAPI::Auth.configure` with a `Configuration` object and memoized,
+    derived accessors — `enabled?`, `verifier`, `social`, `better_auth` — plus a
+    single identity hook, `config.find_user { |claims| ... }`.
+  - `NeonAPI::Auth::Controller`, a plain-Ruby controller concern
+    (`neon_social_start` / `neon_social_callback`) that keeps flash, route
+    helpers, and a request-derived `callback_url` in your own controller, with
+    overridable `neon_social` / `neon_verifier` seams for request specs.
+  - A `Railtie` (loaded only under Rails; defaults Neon Auth off in the test
+    env) and a `rails g neon_auth:install` generator (initializer +
+    `neon_auth_id` migration). The core gem stays framework-agnostic.
 - **`NeonAPI::Auth::SocialAuth`** (and `auth.social`) — server-side social
   (OAuth) sign-in for managed Neon Auth ("Continue with Google"), with no Node
   sidecar or client-side JS. `#sign_in` initiates the provider flow and returns

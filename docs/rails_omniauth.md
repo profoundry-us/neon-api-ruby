@@ -193,6 +193,57 @@ end
 
 ---
 
+## 4. Optional Rails layer (kill the boilerplate)
+
+Sections 1–3 hand-roll config resolution, a memoized verifier, and the
+redeem/verify wiring. The gem ships an optional Rails layer (loaded only when
+Rails is present) so you supply only what's genuinely yours — the claims→user
+mapping and your session/redirect policy.
+
+Configure once:
+
+```ruby
+# config/initializers/neon_auth.rb
+NeonAPI::Auth.configure do |c|
+  c.base_url = ENV["NEON_AUTH_BASE_URL"]            # jwks_url derived unless set
+  c.enabled  = c.base_url.present? && !Rails.env.test?
+  c.find_user { |claims| User.find_or_create_from_neon_claims(claims) }
+end
+```
+
+You get memoized accessors — `NeonAPI::Auth.enabled?`, `.verifier`, `.social`,
+`.better_auth` — replacing the `app/services/neon_auth.rb` boilerplate.
+
+For social sign-in, include the controller concern so the flow lives in *your*
+controller with flash, route helpers, and a request-derived `callback_url`:
+
+```ruby
+class NeonSessionsController < ApplicationController
+  include NeonAPI::Auth::Controller
+
+  neon_auth callback_url: ->(_req) { neon_callback_url },
+            on_success:  ->(claims) {
+              sign_in(neon_find_user(claims))
+              redirect_to root_path, notice: "Signed in with Google."
+            },
+            on_failure:  ->(error) { redirect_to login_path, alert: "Sign-in failed." }
+end
+
+# config/routes.rb
+get "/auth/neon/start",    to: "neon_sessions#neon_social_start"
+get "/auth/neon/callback", to: "neon_sessions#neon_social_callback"
+```
+
+`neon_social` / `neon_verifier` are overridable instance methods, so request
+specs stub those seams instead of `allow_any_instance_of`. Scaffold the
+initializer and a `neon_auth_id` migration with `bin/rails g neon_auth:install`.
+
+This is the Rails-native alternative to the framework-agnostic
+`NeonAPI::Auth::RackHandler` (see the [README](../README.md#mountable-rack-handler-mount-and-go)),
+which you'd reach for in non-Rails Rack apps.
+
+---
+
 ## Notes
 
 - **EdDSA:** Neon Auth uses Ed25519 by default — add `gem "rbnacl"` so the `jwt`

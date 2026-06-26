@@ -12,6 +12,12 @@ require_relative "neon_api/auth/jwt_verifier"
 require_relative "neon_api/auth/rest_client"
 require_relative "neon_api/auth/better_auth_client"
 require_relative "neon_api/auth/social_auth"
+require_relative "neon_api/auth/configuration"
+require_relative "neon_api/auth/controller"
+
+# Rails integration (Railtie) loads only when Rails is present, keeping the core
+# gem framework-agnostic.
+require_relative "neon_api/rails/railtie" if defined?(Rails::Railtie)
 require_relative "neon_api/auth/rack_handler"
 require_relative "neon_api/omniauth"
 

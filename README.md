@@ -312,6 +312,52 @@ mount NEON_SOCIAL_HANDLER => "/auth/neon"   # → /auth/neon/start and /auth/neo
 It stashes the challenge in the Rack session between the two requests (so a
 session middleware is required — Rails has one) and loads `rack` lazily.
 
+### Rails convenience layer (optional)
+
+If you're on Rails and want flash, route helpers, and a request-derived
+`callback_url` (things a mounted Rack app gives up), configure Neon Auth once and
+include a controller concern. The gem loads this layer only when Rails is present
+— the core stays framework-agnostic.
+
+```ruby
+# config/initializers/neon_auth.rb
+NeonAPI::Auth.configure do |c|
+  c.base_url = ENV["NEON_AUTH_BASE_URL"]            # jwks_url derived unless set
+  c.enabled  = c.base_url.present? && !Rails.env.test?
+  c.find_user { |claims| User.find_or_create_from_neon_claims(claims) }  # the one app seam
+end
+```
+
+This gives you memoized, derived accessors — `NeonAPI::Auth.enabled?`,
+`.verifier`, `.social`, `.better_auth` — so apps stop hand-rolling that glue.
+
+```ruby
+class NeonSessionsController < ApplicationController
+  include NeonAPI::Auth::Controller
+
+  neon_auth callback_url: ->(_req) { neon_callback_url },          # request-derived; no APP_BASE_URL
+            on_success:  ->(claims) {
+              sign_in(neon_find_user(claims))
+              redirect_to root_path, notice: "Signed in with Google."   # flash works
+            },
+            on_failure:  ->(error) { redirect_to login_path, alert: "Sign-in failed." }
+end
+
+# config/routes.rb
+get "/auth/neon/start",    to: "neon_sessions#neon_social_start"
+get "/auth/neon/callback", to: "neon_sessions#neon_social_callback"
+```
+
+The concern runs the challenge-stash / redeem / verify plumbing; your controller
+keeps routes, helpers, flash, and session policy. The Neon clients are reached
+through overridable methods (`neon_social`, `neon_verifier`), so request specs
+stub those seams instead of `any_instance`. A generator scaffolds the initializer
+and a `neon_auth_id` migration:
+
+```sh
+bin/rails g neon_auth:install
+```
+
 The full walkthrough — routes, controllers, JWT-protected API requests, and the
 (self-hosted-only) OIDC helper — is in
 [docs/rails_omniauth.md](docs/rails_omniauth.md).
