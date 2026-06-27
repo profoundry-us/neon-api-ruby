@@ -109,12 +109,16 @@ module NeonAPI
 
       # --- Overridable seams (stub these in specs instead of any_instance) ---
 
+      # A per-request {SocialAuth}. `NeonAPI::Auth.social` returns a fresh client
+      # each call (its cookie jar must not be shared across threads); memoizing on
+      # the controller — which Rails instantiates per request — keeps one client
+      # for the duration of the request without leaking it to other threads.
       # @return [SocialAuth]
       def neon_social
-        NeonAPI::Auth.social
+        @neon_social ||= NeonAPI::Auth.social
       end
 
-      # @return [JWTVerifier]
+      # @return [JWTVerifier] the shared, memoized (read-only) verifier
       def neon_verifier
         NeonAPI::Auth.verifier
       end

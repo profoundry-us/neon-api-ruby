@@ -328,8 +328,14 @@ NeonAPI::Auth.configure do |c|
 end
 ```
 
-This gives you memoized, derived accessors — `NeonAPI::Auth.enabled?`,
-`.verifier`, `.social`, `.better_auth` — so apps stop hand-rolling that glue.
+This gives you derived accessors — `NeonAPI::Auth.enabled?`, `.verifier`,
+`.social`, `.better_auth` — so apps stop hand-rolling that glue.
+
+> **Thread-safety:** `.verifier` is memoized and safe to share (verification is
+> read-only). `.social` and `.better_auth` return a **fresh** client each call —
+> they carry a mutable cookie jar that must not be shared across threads — so use
+> one per request/call (building does no network). The `Controller` concern
+> already does this for you.
 
 ```ruby
 class NeonSessionsController < ApplicationController

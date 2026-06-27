@@ -128,19 +128,28 @@ module NeonAPI
         config.enabled?
       end
 
-      # @return [JWTVerifier] memoized verifier built from {config}
+      # A memoized verifier built from {config}. Safe to share across threads:
+      # verification is read-only and the JWKS cache is read-mostly.
+      # @return [JWTVerifier]
       def verifier
         @verifier ||= client_mutex.synchronize { @verifier ||= config.build_verifier }
       end
 
-      # @return [SocialAuth] memoized social client built from {config}
+      # A **fresh** social client each call. {SocialAuth} (via {RestClient})
+      # carries a mutable cookie jar, so sharing one instance across threads would
+      # race and could cross sessions between users under a threaded server. Build
+      # does no network — just sets ivars — so per-request construction is cheap.
+      # See https://github.com/profoundry-us/neon-api-ruby/issues/6.
+      # @return [SocialAuth]
       def social
-        @social ||= client_mutex.synchronize { @social ||= config.build_social }
+        config.build_social
       end
 
-      # @return [BetterAuthClient] memoized email/password client built from {config}
+      # A **fresh** email/password client each call — same cookie-jar reasoning as
+      # {.social}. Not safe to share across threads.
+      # @return [BetterAuthClient]
       def better_auth
-        @better_auth ||= client_mutex.synchronize { @better_auth ||= config.build_better_auth }
+        config.build_better_auth
       end
 
       # Map verified claims to your app's user via the configured identity hook.
@@ -154,8 +163,9 @@ module NeonAPI
         @client_mutex ||= Mutex.new
       end
 
+      # Only the verifier is memoized; social/better_auth are built fresh per call.
       def reset_clients!
-        @verifier = @social = @better_auth = nil
+        @verifier = nil
       end
     end
   end

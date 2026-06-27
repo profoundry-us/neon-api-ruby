@@ -55,6 +55,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - Real EdDSA token verification now works out of the box via the `jwt` 2.x pin
   (#1).
+- **Thread-safety:** `NeonAPI::Auth.social` / `.better_auth` no longer memoize a
+  single shared client. Those clients carry a mutable cookie jar, so a shared
+  instance could race across threads and cross sessions between users under a
+  threaded server (Puma). They now return a fresh client per call; the
+  `Controller` concern builds one per request. `.verifier` stays memoized
+  (read-only) (#6).
 
 ## [0.1.0] - 2026-06-25
 

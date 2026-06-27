@@ -89,19 +89,40 @@ RSpec.describe NeonAPI::Auth::Configuration do
       expect(NeonAPI::Auth.config.base_url).to eq(base_url)
     end
 
-    it "memoizes verifier / social / better_auth" do
+    it "memoizes the read-only verifier" do
       NeonAPI::Auth.configure { |c| c.base_url = base_url }
       expect(NeonAPI::Auth.verifier).to equal(NeonAPI::Auth.verifier)
-      expect(NeonAPI::Auth.social).to equal(NeonAPI::Auth.social)
-      expect(NeonAPI::Auth.better_auth).to equal(NeonAPI::Auth.better_auth)
     end
 
-    it "rebuilds memoized clients after reconfiguring" do
+    it "rebuilds the memoized verifier after reconfiguring" do
       NeonAPI::Auth.configure { |c| c.base_url = base_url }
-      first = NeonAPI::Auth.social
+      first = NeonAPI::Auth.verifier
       NeonAPI::Auth.configure { |c| c.base_url = "https://ep-y.neonauth.x.aws.neon.tech/neondb/auth" }
-      expect(NeonAPI::Auth.social).not_to equal(first)
-      expect(NeonAPI::Auth.social.base_url).to end_with("ep-y.neonauth.x.aws.neon.tech/neondb/auth")
+      expect(NeonAPI::Auth.verifier).not_to equal(first)
+    end
+
+    # Issue #6: the stateful clients carry a mutable cookie jar, so they must not
+    # be shared across threads. They are built fresh per call.
+    it "returns a fresh social / better_auth client each call" do
+      NeonAPI::Auth.configure { |c| c.base_url = base_url }
+      expect(NeonAPI::Auth.social).not_to equal(NeonAPI::Auth.social)
+      expect(NeonAPI::Auth.better_auth).not_to equal(NeonAPI::Auth.better_auth)
+      expect(NeonAPI::Auth.social.base_url).to eq(base_url)
+    end
+
+    it "isolates cookie jars across concurrent threads" do
+      NeonAPI::Auth.configure { |c| c.base_url = base_url }
+
+      readbacks = Array.new(12) do |i|
+        Thread.new do
+          client = NeonAPI::Auth.social
+          client.cookies = { "sid" => "user-#{i}" }
+          Thread.pass # invite interleaving; a shared jar would clobber here
+          client.session_cookie
+        end
+      end.map(&:value)
+
+      expect(readbacks.sort).to eq(Array.new(12) { |i| "sid=user-#{i}" }.sort)
     end
 
     it "delegates find_user to the configured hook" do
