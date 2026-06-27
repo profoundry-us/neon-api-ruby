@@ -13,3 +13,31 @@ end
 RuboCop::RakeTask.new
 
 task default: %i[spec rubocop]
+
+namespace :matrix do
+  desc "Regenerate the per-Ruby CI lockfiles (gemfiles/ruby_<ver>.gemfile.lock) via Docker"
+  task :lock do
+    # The CI Ruby versions, each with a committed lockfile resolved under that
+    # Ruby (so a single modern lock can't pin transitive deps that dropped older
+    # Rubies). Keep in sync with the matrix in .github/workflows/ci.yml.
+    rubies = %w[3.0 3.1 3.2 3.3]
+
+    rubies.each do |version|
+      gemfile = "gemfiles/ruby_#{version}.gemfile"
+      File.write(gemfile, <<~RUBY)
+        # frozen_string_literal: true
+
+        # Per-Ruby bundle for the CI matrix (Ruby #{version}). Reuses the root Gemfile so the
+        # dev/test deps are identical to local; only the resolved lockfile differs, so
+        # each Ruby gets versions it can actually install. Regenerate with:
+        #   rake matrix:lock        (resolves every version under its real Ruby via Docker)
+        eval_gemfile File.expand_path("../Gemfile", __dir__)
+      RUBY
+
+      puts "Locking #{gemfile} under ruby:#{version}..."
+      sh "docker run --rm -v #{Dir.pwd}:/work -w /work ruby:#{version} bash -c " \
+         "'BUNDLE_GEMFILE=#{gemfile} bundle lock && " \
+         "BUNDLE_GEMFILE=#{gemfile} bundle lock --add-platform x86_64-linux'"
+    end
+  end
+end

@@ -74,6 +74,12 @@ Run `just` with no arguments to list every available command.
 - `Gemfile.lock` is committed, so the image and your host resolve to the same
   dependency versions. After a dependency change, run `just bundle` to refresh
   the lockfile in the working tree and commit it.
+- CI tests each Ruby (3.0–3.3) against its **own** committed lockfile under
+  `gemfiles/ruby_<ver>.gemfile.lock`, resolved on that Ruby (a single
+  modern-Ruby lock would pin transitive gems that dropped older Rubies). After a
+  dependency change, regenerate them with `rake matrix:lock` (runs each version
+  in its `ruby:<ver>` Docker image) and commit. The Rails integration specs use
+  the same pattern per Rails version (`gemfiles/rails_*.gemfile`).
 - The image installs `build-essential` and `libsodium-dev`, so native-extension
   gems compile and `rbnacl` (the EdDSA/Ed25519 path used to verify Neon Auth
   JWTs) works out of the box — including the EdDSA verification spec.

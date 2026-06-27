@@ -1,0 +1,7 @@
+# frozen_string_literal: true
+
+# Per-Ruby bundle for the CI matrix (Ruby 3.2). Reuses the root Gemfile so the
+# dev/test deps are identical to local; only the resolved lockfile differs, so
+# each Ruby gets versions it can actually install. Regenerate with:
+#   rake matrix:lock        (resolves every version under its real Ruby via Docker)
+eval_gemfile File.expand_path("../Gemfile", __dir__)

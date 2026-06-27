@@ -11,9 +11,18 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
+      # Each Ruby uses its own committed lockfile (gemfiles/ruby_<ver>.gemfile),
+      # resolved under that Ruby, so one machine-generated lock doesn't pin
+      # transitive deps that dropped older Rubies. Regenerate with `rake matrix:lock`.
       matrix:
-        ruby: ["3.0", "3.1", "3.2", "3.3"]
+        include:
+          - { ruby: "3.0", gemfile: gemfiles/ruby_3.0.gemfile }
+          - { ruby: "3.1", gemfile: gemfiles/ruby_3.1.gemfile }
+          - { ruby: "3.2", gemfile: gemfiles/ruby_3.2.gemfile }
+          - { ruby: "3.3", gemfile: gemfiles/ruby_3.3.gemfile }
     name: Ruby ${{ matrix.ruby }}
+    env:
+      BUNDLE_GEMFILE: ${{ matrix.gemfile }}
     steps:
       - uses: actions/checkout@v4
       # rbnacl binds to libsodium at runtime; needed so the EdDSA verification
