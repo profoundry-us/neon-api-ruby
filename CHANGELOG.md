@@ -8,6 +8,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **Management API completion**: `databases`, `endpoints` (incl. `start` /
+  `suspend`), `roles` (incl. `reset_password` / `reveal_password`), `operations`,
+  `consumption_history_account` / `_projects`, and `connection_uri`. Plus a
+  cursor-paginating `#paginate` (with `#each_project` / `#each_operation`).
 - **Automatic retries** in the HTTP layer: exponential backoff with full jitter
   on `429` (any method, honoring `Retry-After`) and transient `5xx`/network
   errors (idempotent methods only). Configurable via `max_retries` /

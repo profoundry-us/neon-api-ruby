@@ -392,10 +392,35 @@ client.project_delete(project_id)
 client.branches(project_id)
 client.branch(project_id, branch_id)
 client.branch_create(project_id, branch: { name: "feature-x" })
+
+client.databases(project_id, branch_id)
+client.database_create(project_id, branch_id, database: { name: "app", owner_name: "neondb_owner" })
+
+client.endpoints(project_id)
+client.endpoint_create(project_id, endpoint: { branch_id: branch_id, type: "read_write" })
+client.endpoint_start(project_id, endpoint_id)
+client.endpoint_suspend(project_id, endpoint_id)
+
+client.roles(project_id, branch_id)
+client.role_create(project_id, branch_id, "app")
+client.role_reset_password(project_id, branch_id, "app")
+
+client.operations(project_id)
+client.consumption_history_account(granularity: "daily")
+
+client.connection_uri(project_id, database_name: "neondb", role_name: "neondb_owner")
 ```
 
-More endpoints (databases, endpoints, roles, operations, consumption) are on the
-[roadmap](#roadmap). Until they're wrapped, see below.
+List endpoints are cursor-paginated; iterate every page automatically:
+
+```ruby
+client.each_project { |p| puts p.id }
+client.each_operation(project_id).select { |op| op.status == "running" }
+# or build your own over any list endpoint:
+client.paginate("projects/#{project_id}/endpoints", collection: "endpoints").to_a
+```
+
+For anything not yet wrapped, see [below](#calling-endpoints-that-arent-wrapped-yet).
 
 ## Error handling
 
@@ -504,7 +529,8 @@ network — the equivalent of the Python client's VCR cassettes.
 - [x] Runtime JWT verification (JWKS, caching, rotation)
 - [x] OmniAuth / OIDC config helper
 - [x] Management: me, api keys, projects, branches
-- [ ] Management: databases, endpoints, roles, operations, consumption
+- [x] Management: databases, endpoints, roles, operations, consumption (+ pagination)
+- [x] Reliability: automatic retries (429/5xx) + request instrumentation
 - [ ] Generated schema/type objects from the OpenAPI spec
 - [ ] Published to RubyGems
 

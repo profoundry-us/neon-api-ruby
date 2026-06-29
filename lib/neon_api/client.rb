@@ -142,6 +142,187 @@ module NeonAPI
 
     # @!endgroup
 
+    # @!group Databases (branch-scoped)
+
+    # @return [NeonAPI::Object]
+    def databases(project_id, branch_id, **params)
+      wrap(@connection.get(branch_path(project_id, branch_id, "databases"), query: params))
+    end
+
+    # @return [NeonAPI::Object]
+    def database(project_id, branch_id, database_name)
+      wrap(@connection.get(branch_path(project_id, branch_id, "databases/#{database_name}")))
+    end
+
+    # @param database [Hash] the "database" payload (e.g. { name:, owner_name: })
+    # @return [NeonAPI::Object]
+    def database_create(project_id, branch_id, database: {})
+      wrap(@connection.post(branch_path(project_id, branch_id, "databases"), body: { database: database }))
+    end
+
+    # @return [NeonAPI::Object]
+    def database_update(project_id, branch_id, database_name, database:)
+      wrap(@connection.patch(branch_path(project_id, branch_id, "databases/#{database_name}"),
+                             body: { database: database }))
+    end
+
+    # @return [NeonAPI::Object, nil]
+    def database_delete(project_id, branch_id, database_name)
+      wrap(@connection.delete(branch_path(project_id, branch_id, "databases/#{database_name}")))
+    end
+
+    # @!endgroup
+
+    # @!group Endpoints (compute, project-scoped)
+
+    # @return [NeonAPI::Object]
+    def endpoints(project_id, **params)
+      wrap(@connection.get("projects/#{project_id}/endpoints", query: params))
+    end
+
+    # @return [NeonAPI::Object]
+    def endpoint(project_id, endpoint_id)
+      wrap(@connection.get("projects/#{project_id}/endpoints/#{endpoint_id}"))
+    end
+
+    # @param endpoint [Hash] the "endpoint" payload (e.g. { branch_id:, type: })
+    # @return [NeonAPI::Object]
+    def endpoint_create(project_id, endpoint: {})
+      wrap(@connection.post("projects/#{project_id}/endpoints", body: { endpoint: endpoint }))
+    end
+
+    # @return [NeonAPI::Object]
+    def endpoint_update(project_id, endpoint_id, endpoint:)
+      wrap(@connection.patch("projects/#{project_id}/endpoints/#{endpoint_id}", body: { endpoint: endpoint }))
+    end
+
+    # @return [NeonAPI::Object, nil]
+    def endpoint_delete(project_id, endpoint_id)
+      wrap(@connection.delete("projects/#{project_id}/endpoints/#{endpoint_id}"))
+    end
+
+    # Start a suspended endpoint. @return [NeonAPI::Object]
+    def endpoint_start(project_id, endpoint_id)
+      wrap(@connection.post("projects/#{project_id}/endpoints/#{endpoint_id}/start"))
+    end
+
+    # Suspend a running endpoint. @return [NeonAPI::Object]
+    def endpoint_suspend(project_id, endpoint_id)
+      wrap(@connection.post("projects/#{project_id}/endpoints/#{endpoint_id}/suspend"))
+    end
+
+    # @!endgroup
+
+    # @!group Roles (branch-scoped)
+
+    # @return [NeonAPI::Object]
+    def roles(project_id, branch_id)
+      wrap(@connection.get(branch_path(project_id, branch_id, "roles")))
+    end
+
+    # @return [NeonAPI::Object]
+    def role(project_id, branch_id, role_name)
+      wrap(@connection.get(branch_path(project_id, branch_id, "roles/#{role_name}")))
+    end
+
+    # @return [NeonAPI::Object]
+    def role_create(project_id, branch_id, role_name)
+      wrap(@connection.post(branch_path(project_id, branch_id, "roles"), body: { role: { name: role_name } }))
+    end
+
+    # @return [NeonAPI::Object, nil]
+    def role_delete(project_id, branch_id, role_name)
+      wrap(@connection.delete(branch_path(project_id, branch_id, "roles/#{role_name}")))
+    end
+
+    # Reset (rotate) a role's password. @return [NeonAPI::Object]
+    def role_reset_password(project_id, branch_id, role_name)
+      wrap(@connection.post(branch_path(project_id, branch_id, "roles/#{role_name}/reset_password")))
+    end
+
+    # Reveal a role's current password. @return [NeonAPI::Object]
+    def role_reveal_password(project_id, branch_id, role_name)
+      wrap(@connection.get(branch_path(project_id, branch_id, "roles/#{role_name}/reveal_password")))
+    end
+
+    # @!endgroup
+
+    # @!group Operations & consumption
+
+    # @return [NeonAPI::Object]
+    def operations(project_id, **params)
+      wrap(@connection.get("projects/#{project_id}/operations", query: params))
+    end
+
+    # @return [NeonAPI::Object]
+    def operation(project_id, operation_id)
+      wrap(@connection.get("projects/#{project_id}/operations/#{operation_id}"))
+    end
+
+    # Account-level consumption metrics. @return [NeonAPI::Object]
+    def consumption_history_account(**params)
+      wrap(@connection.get("consumption_history/account", query: params))
+    end
+
+    # Per-project consumption metrics. @return [NeonAPI::Object]
+    def consumption_history_projects(**params)
+      wrap(@connection.get("consumption_history/projects", query: params))
+    end
+
+    # A ready-to-use Postgres connection URI for a database + role.
+    # @param database_name [String]
+    # @param role_name [String]
+    # @param params [Hash] extra query params (e.g. :branch_id, :endpoint_id, :pooled)
+    # @return [NeonAPI::Object]
+    def connection_uri(project_id, database_name:, role_name:, **params)
+      query = { database_name: database_name, role_name: role_name }.merge(params)
+      wrap(@connection.get("projects/#{project_id}/connection_uri", query: query))
+    end
+
+    # @!endgroup
+
+    # @!group Pagination
+
+    # Iterate every item of a cursor-paginated list endpoint, fetching pages as
+    # needed. Returns an Enumerator when no block is given.
+    #
+    # @example
+    #   client.paginate("projects", collection: "projects").map(&:id)
+    #
+    # @param path [String] the list endpoint path
+    # @param collection [String] the response key holding the array (e.g. "projects")
+    # @param params [Hash] query params forwarded to each page request
+    # @yieldparam item [NeonAPI::Object]
+    # @return [Enumerator, void]
+    def paginate(path, collection:, **params)
+      return enum_for(:paginate, path, collection: collection, **params) unless block_given?
+
+      cursor = nil
+      loop do
+        page = @connection.get(path, query: params.merge(cursor: cursor).compact)
+        items = Array(page[collection.to_s])
+        items.each { |item| yield wrap(item) }
+        next_cursor = page.dig("pagination", "cursor")
+        break if items.empty? || next_cursor.nil? || next_cursor.to_s.empty? || next_cursor == cursor
+
+        cursor = next_cursor
+      end
+    end
+
+    # Enumerate all projects across pages.
+    # @return [Enumerator, void]
+    def each_project(**params, &block)
+      paginate("projects", collection: "projects", **params, &block)
+    end
+
+    # Enumerate all operations for a project across pages.
+    # @return [Enumerator, void]
+    def each_operation(project_id, **params, &block)
+      paginate("projects/#{project_id}/operations", collection: "operations", **params, &block)
+    end
+
+    # @!endgroup
+
     # Access the Neon Auth surface for a specific project + branch.
     #
     # Neon Auth is scoped to a branch (most apps use the project's default
@@ -156,6 +337,10 @@ module NeonAPI
     end
 
     private
+
+    def branch_path(project_id, branch_id, suffix)
+      "projects/#{project_id}/branches/#{branch_id}/#{suffix}"
+    end
 
     def wrap(payload)
       payload.is_a?(::Hash) ? Object.new(payload) : payload
