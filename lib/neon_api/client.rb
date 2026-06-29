@@ -46,10 +46,10 @@ module NeonAPI
     end
 
     # @param api_key [String] a Neon API key
-    # @param base_url [String] override the API base URL
-    # @param timeout [Integer] request timeout in seconds
-    def initialize(api_key:, base_url: Connection::DEFAULT_BASE_URL, timeout: 30)
-      @connection = Connection.new(api_key: api_key, base_url: base_url, timeout: timeout)
+    # @param options [Hash] forwarded to {Connection} (e.g. :base_url, :timeout,
+    #   :max_retries, :instrumenter)
+    def initialize(api_key:, **options)
+      @connection = Connection.new(api_key: api_key, **options)
     end
 
     # @!group Account

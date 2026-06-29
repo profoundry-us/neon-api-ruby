@@ -20,12 +20,15 @@ module NeonAPI
     attr_reader :request
     # @return [String, nil] Neon's request id, useful when contacting support
     attr_reader :request_id
+    # @return [Float, nil] seconds to wait before retrying (from Retry-After), if any
+    attr_reader :retry_after
 
-    def initialize(message, status:, body: nil, request: nil, request_id: nil)
+    def initialize(message, status:, body: nil, request: nil, request_id: nil, retry_after: nil)
       @status = status
       @body = body
       @request = request
       @request_id = request_id
+      @retry_after = retry_after
       super(build_message(message))
     end
 

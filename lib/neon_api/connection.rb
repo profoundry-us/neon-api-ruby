@@ -3,6 +3,7 @@
 require "net/http"
 require "json"
 require "uri"
+require "time"
 
 require_relative "errors"
 require_relative "object"
@@ -23,6 +24,19 @@ module NeonAPI
     # The default Neon API base URL (note the trailing slash and /api/v2/ path).
     DEFAULT_BASE_URL = "https://console.neon.tech/api/v2/"
 
+    # HTTP methods safe to retry on transient 5xx / network errors. (429 is
+    # retried for every method, since a rate-limited request was never processed.)
+    IDEMPOTENT_METHODS = %i[get put delete head options].freeze
+
+    # No-op instrumenter. Pass `ActiveSupport::Notifications` (or any object with
+    # a compatible `#instrument(name, payload) { ... }`) to observe requests;
+    # subscribe to the `"request.neon_api"` event for method/path/status/attempts.
+    module NullInstrumenter
+      def self.instrument(_name, _payload = {})
+        yield if block_given?
+      end
+    end
+
     # @return [URI] the resolved base URL
     attr_reader :base_url
 
@@ -30,13 +44,26 @@ module NeonAPI
     # @param base_url [String] override the API base URL (e.g. for testing)
     # @param timeout [Integer] read/open timeout in seconds
     # @param user_agent [String] override the User-Agent header
-    def initialize(api_key:, base_url: DEFAULT_BASE_URL, timeout: 30, user_agent: nil)
+    # @param max_retries [Integer] retry attempts for 429 / transient 5xx /
+    #   network errors (0 disables; default 2 → up to 3 total tries)
+    # @param retry_base_delay [Float] base backoff in seconds (doubled per attempt)
+    # @param retry_max_delay [Float] cap on any single backoff, in seconds
+    # @param instrumenter [#instrument] observes requests (default: no-op)
+    # @param sleeper [#call] receives the backoff seconds (injectable for tests)
+    def initialize(api_key:, base_url: DEFAULT_BASE_URL, timeout: 30, user_agent: nil,
+                   max_retries: 2, retry_base_delay: 0.5, retry_max_delay: 10.0,
+                   instrumenter: NullInstrumenter, sleeper: ->(seconds) { sleep(seconds) })
       raise ConfigurationError, "an api_key is required" if api_key.nil? || api_key.to_s.empty?
 
       @api_key = api_key
       @base_url = URI.parse(ensure_trailing_slash(base_url))
       @timeout = timeout
       @user_agent = user_agent || "neon-api-ruby/#{NeonAPI::VERSION} (+#{base_url})"
+      @max_retries = max_retries
+      @retry_base_delay = retry_base_delay
+      @retry_max_delay = retry_max_delay
+      @instrumenter = instrumenter
+      @sleeper = sleeper
     end
 
     # @!group HTTP verbs
@@ -74,12 +101,58 @@ module NeonAPI
     # @raise [APIError] on any non-2xx response
     def request(method, path, body: nil, query: nil, headers: {})
       uri = build_uri(path, query)
-      req = build_request(method, uri, body, headers)
-      response = perform(req, uri)
-      handle(response, method, path)
+      payload = { method: method, path: path, attempts: 0 }
+
+      @instrumenter.instrument("request.neon_api", payload) do
+        with_retries(method) do
+          payload[:attempts] += 1
+          req = build_request(method, uri, body, headers)
+          response = perform(req, uri)
+          payload[:status] = response.code.to_i
+          handle(response, method, path)
+        end
+      end
     end
 
     private
+
+    # Retry transient failures with exponential backoff + jitter. 429s are
+    # retried for any method (the request was never processed); 5xx and network
+    # errors only for idempotent methods (repeating a POST could double-write).
+    def with_retries(method)
+      attempt = 0
+      begin
+        yield
+      rescue RateLimitError, ServerError, Error => e
+        raise unless attempt < @max_retries && retryable?(e, method)
+
+        @sleeper.call(retry_delay(e, attempt))
+        attempt += 1
+        retry
+      end
+    end
+
+    def retryable?(error, method)
+      return true if error.is_a?(RateLimitError) # 429: never processed, safe for any method
+      # Other 4xx are caller errors; only 5xx (ServerError) and bare network
+      # errors are transient — and those only for idempotent methods.
+      return false if error.is_a?(APIError) && !error.is_a?(ServerError)
+
+      idempotent?(method)
+    end
+
+    def idempotent?(method)
+      IDEMPOTENT_METHODS.include?(method)
+    end
+
+    def retry_delay(error, attempt)
+      retry_after = error.respond_to?(:retry_after) && error.retry_after
+      return [retry_after.to_f, @retry_max_delay].min if retry_after
+
+      # Exponential backoff with full jitter, capped.
+      ceiling = [@retry_base_delay * (2**attempt), @retry_max_delay].min
+      rand * ceiling
+    end
 
     def perform(req, uri)
       http = Net::HTTP.new(uri.host, uri.port)
@@ -147,8 +220,19 @@ module NeonAPI
         status: status,
         body: parsed,
         request: "#{method.to_s.upcase} /#{path.to_s.sub(%r{\A/}, "")}",
-        request_id: request_id
+        request_id: request_id,
+        retry_after: parse_retry_after(response["retry-after"])
       )
+    end
+
+    # Retry-After is either a number of seconds or an HTTP-date.
+    def parse_retry_after(raw)
+      return nil if raw.nil? || raw.to_s.strip.empty?
+      return raw.to_f if raw.match?(/\A\s*\d+(\.\d+)?\s*\z/)
+
+      [Time.httpdate(raw) - Time.now, 0.0].max
+    rescue ArgumentError
+      nil
     end
 
     def extract_message(parsed)

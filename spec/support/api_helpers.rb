@@ -6,8 +6,11 @@ module APIHelpers
   BASE_URL = "https://console.neon.tech/api/v2"
   API_KEY = "neon_api_key_test"
 
-  def client(api_key: API_KEY)
-    NeonAPI::Client.new(api_key: api_key)
+  # A no-op sleeper so retry-triggering specs (429/5xx) don't actually sleep.
+  NO_SLEEP = ->(_seconds) {}
+
+  def client(api_key: API_KEY, **options)
+    NeonAPI::Client.new(api_key: api_key, sleeper: NO_SLEEP, **options)
   end
 
   # Stub a JSON endpoint. Returns the WebMock stub so callers can assert on it.

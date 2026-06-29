@@ -426,6 +426,39 @@ end
 
 All inherit from `NeonAPI::APIError < NeonAPI::Error`.
 
+## Reliability & instrumentation
+
+The client retries transient failures automatically, with exponential backoff and
+full jitter:
+
+- **429 (rate limited)** — retried for any method (the request was never
+  processed), honoring the `Retry-After` header when present.
+- **5xx / network errors** — retried only for **idempotent** methods (GET/PUT/
+  DELETE), since repeating a POST could double-write.
+
+```ruby
+client = NeonAPI.from_environ(
+  max_retries: 2,            # 0 disables; default 2 → up to 3 tries
+  retry_max_delay: 10.0      # cap on any single backoff (seconds)
+)
+```
+
+Every request is wrapped in an instrumentation event (`"request.neon_api"`) you
+can subscribe to — pass anything with an `ActiveSupport::Notifications`-style
+`#instrument`:
+
+```ruby
+client = NeonAPI.from_environ(instrumenter: ActiveSupport::Notifications)
+
+ActiveSupport::Notifications.subscribe("request.neon_api") do |*, payload|
+  Rails.logger.info("neon #{payload[:method].upcase} #{payload[:path]} " \
+                    "→ #{payload[:status]} (#{payload[:attempts]} attempt(s))")
+end
+```
+
+`NeonAPI::RateLimitError#retry_after` exposes the parsed `Retry-After` seconds if
+you handle throttling yourself.
+
 ## Calling endpoints that aren't wrapped yet
 
 The underlying connection is public, so you can reach any endpoint:

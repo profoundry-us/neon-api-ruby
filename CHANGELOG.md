@@ -8,6 +8,15 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **Automatic retries** in the HTTP layer: exponential backoff with full jitter
+  on `429` (any method, honoring `Retry-After`) and transient `5xx`/network
+  errors (idempotent methods only). Configurable via `max_retries` /
+  `retry_max_delay`; `NeonAPI::APIError#retry_after` exposes the parsed header.
+- **Instrumentation hook**: each request emits a `"request.neon_api"` event with
+  `method`/`path`/`status`/`attempts` to any `ActiveSupport::Notifications`-style
+  instrumenter (no-op by default). `Client.new` now forwards options to
+  `Connection`.
+
 - **Optional Rails layer** so apps stop hand-rolling the glue (#5):
   - `NeonAPI::Auth.configure` with a `Configuration` object and memoized,
     derived accessors — `enabled?`, `verifier`, `social`, `better_auth` — plus a
