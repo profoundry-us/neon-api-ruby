@@ -6,20 +6,26 @@ RSpec.describe NeonAPI::Auth::Users do
   let(:base) { "projects/p1/branches/b1/auth/users" }
 
   describe "#create" do
-    it "POSTs email and password" do
+    it "POSTs email and name (required by the live API) plus password" do
       stub = stub_neon(:post, base,
-                       request_body: { email: "ada@example.com", password: "s3cret" },
+                       request_body: { email: "ada@example.com", name: "Ada", password: "s3cret" },
                        body: { id: "u1" })
-      expect(users.create(email: "ada@example.com", password: "s3cret").id).to eq("u1")
+      created = users.create(email: "ada@example.com", name: "Ada", password: "s3cret")
+      expect(created).to be_a(NeonAPI::Types::NeonAuthCreateNewUserResponse)
+      expect(created.id).to eq("u1")
       expect(stub).to have_been_requested
     end
 
     it "omits a nil password and forwards extra attributes" do
       stub = stub_neon(:post, base,
-                       request_body: { email: "ada@example.com", display_name: "Ada" },
+                       request_body: { email: "ada@example.com", name: "Ada", role: "admin" },
                        body: {})
-      users.create(email: "ada@example.com", display_name: "Ada")
+      users.create(email: "ada@example.com", name: "Ada", role: "admin")
       expect(stub).to have_been_requested
+    end
+
+    it "requires name as a keyword" do
+      expect { users.create(email: "ada@example.com") }.to raise_error(ArgumentError, /name/)
     end
   end
 

@@ -16,7 +16,7 @@ module NeonAPI
     #
     # @example
     #   users = client.auth(project_id, branch_id).users
-    #   users.create(email: "ada@example.com", password: "s3cret")
+    #   users.create(email: "ada@example.com", name: "Ada")
     #   users.set_role(user_id, role: "admin")
     #   users.delete(user_id)
     class Users
@@ -30,12 +30,16 @@ module NeonAPI
       # Create a user.
       #
       # @param email [String]
-      # @param password [String, nil] optional; omit for passwordless/OAuth-only
+      # @param name [String] the user's display name. The OpenAPI spec marks it
+      #   optional, but the live API rejects requests without it (400,
+      #   "[body.name] expected string, received null" — verified 2026-07).
+      # @param password [String, nil] accepted by the live API but no longer in
+      #   its documented request schema; the supported way to create a
+      #   password-backed user is Better Auth sign-up ({BetterAuthClient#sign_up_email})
       # @param attributes [Hash] any additional fields Neon Auth accepts
-      #   (e.g. :display_name, :role)
       # @return [Types::NeonAuthCreateNewUserResponse]
-      def create(email:, password: nil, **attributes)
-        body = { email: email, password: password, **attributes }.compact
+      def create(email:, name:, password: nil, **attributes)
+        body = { email: email, name: name, password: password, **attributes }.compact
         wrap(@connection.post(@path, body: body), Types::NeonAuthCreateNewUserResponse)
       end
 

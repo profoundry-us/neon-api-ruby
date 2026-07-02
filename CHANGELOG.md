@@ -63,6 +63,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- `auth.users.create` now takes a required `name:` keyword. The live API
+  rejects user creation without it (400 `[body.name] expected string, received
+  null` — verified against a real project 2026-07), even though the OpenAPI
+  spec still marks it optional. `password:` remains accepted but is no longer
+  part of Neon's documented request schema; prefer Better Auth sign-up
+  (`better_auth.sign_up_email`) for password-backed users.
 - Endpoints that return a bare JSON array (`Client#api_keys`) now wrap each
   element (`Types::ApiKeysListResponseItem`) instead of returning raw hashes,
   matching the rest of the client.

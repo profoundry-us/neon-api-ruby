@@ -168,7 +168,7 @@ Supported provider ids: `google`, `github`, `microsoft`, `vercel`
 ```ruby
 users = auth.users
 
-users.create(email: "ada@example.com", password: "s3cret", display_name: "Ada")
+users.create(email: "ada@example.com", name: "Ada")  # name is required by the live API
 users.set_role(user_id, role: "admin")
 users.update(user_id, display_name: "Ada L.")
 users.delete(user_id)
