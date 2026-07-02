@@ -45,7 +45,7 @@ abort "NEON_API_KEY is not set — see .env.example" unless env("NEON_API_KEY")
 
 def check(label)
   result = yield
-  puts "PASS  #{label}#{result ? " — #{result}" : ""}"
+  puts ["PASS  #{label}", result].compact.join(" — ")
 rescue NeonAPI::APIError => e
   puts "INFO  #{label} — #{e.class} (status #{e.status})"
 rescue StandardError => e
@@ -161,7 +161,8 @@ end
 check("operations → OperationsList of Operation (+ pagination)") do
   list = client.operations(project_id, limit: 3)
   op = list.operations.first
-  "#{list.operations.size} ops, first=#{op.action}/#{op.status} (#{op.class}), pagination=#{list.pagination.class}"
+  "#{list.operations.size} ops, first=#{op.action}/#{op.status} (#{op.class}), " \
+    "pagination=#{list.pagination.class}"
 end
 
 check("connection_uri → ConnectionURIResponse (truncated)") do
@@ -268,6 +269,8 @@ end
 
 puts
 puts "== post-mutation state check =="
-check("databases back to baseline") { client.databases(project_id, branch_id).databases.map(&:name).join(", ") }
+check("databases back to baseline") do
+  client.databases(project_id, branch_id).databases.map(&:name).join(", ")
+end
 check("roles back to baseline") { client.roles(project_id, branch_id).roles.map(&:name).join(", ") }
 check("branches back to baseline") { client.branches(project_id).branches.map(&:name).join(", ") }
