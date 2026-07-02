@@ -8,6 +8,14 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- **OpenAPI-generated response types** (`NeonAPI::Types`): every client method
+  now returns a typed subclass of `NeonAPI::Object` generated from Neon's
+  published OpenAPI spec — documented, YARD-typed readers for all known fields
+  (including nested `$ref`s, arrays, and merged `allOf` schemas), while dynamic
+  access to unknown/newer fields keeps working. Regenerate with
+  `rake types:generate` (`lib/neon_api/type_generator.rb` is the dev-only
+  generator; `lib/neon_api/types.rb` is committed). Cursor pagination yields
+  typed items too (`each_project` → `Types::ProjectListItem`).
 - **Management API completion**: `databases`, `endpoints` (incl. `start` /
   `suspend`), `roles` (incl. `reset_password` / `reveal_password`), `operations`,
   `consumption_history_account` / `_projects`, and `connection_uri`. Plus a
@@ -55,6 +63,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- Endpoints that return a bare JSON array (`Client#api_keys`) now wrap each
+  element (`Types::ApiKeysListResponseItem`) instead of returning raw hashes,
+  matching the rest of the client.
 - Pinned `jwt` to `~> 2.7` (was `>= 2.7, < 4.0`). jwt 3.x rejects genuine Neon
   Auth EdDSA tokens with `JWT::IncorrectAlgorithm` (#1).
 - Documentation now references `neon_auth.user` (Better Auth's native table),

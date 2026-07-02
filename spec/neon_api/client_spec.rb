@@ -25,18 +25,20 @@ RSpec.describe NeonAPI::Client do
   end
 
   describe "account" do
-    it "#me fetches the current user and wraps the response" do
+    it "#me fetches the current user and wraps the response in the generated type" do
       stub_neon(:get, "users/me", body: { email: "ada@example.com", id: "u1" })
       me = client.me
-      expect(me).to be_a(NeonAPI::Object)
+      expect(me).to be_a(NeonAPI::Types::CurrentUserInfoResponse)
       expect(me.email).to eq("ada@example.com")
     end
   end
 
   describe "api keys" do
-    it "#api_keys lists keys" do
-      stub_neon(:get, "api_keys", body: { api_keys: [{ id: 1 }] })
-      expect(client.api_keys.api_keys.first.id).to eq(1)
+    it "#api_keys wraps each item of the bare-array response" do
+      stub_neon(:get, "api_keys", body: [{ id: 1, name: "ci" }])
+      keys = client.api_keys
+      expect(keys.first).to be_a(NeonAPI::Types::ApiKeysListResponseItem)
+      expect(keys.first.id).to eq(1)
     end
 
     it "#api_key_create posts a key name" do
@@ -60,9 +62,12 @@ RSpec.describe NeonAPI::Client do
       expect(stub).to have_been_requested
     end
 
-    it "#project fetches one" do
+    it "#project fetches one and types the nested project" do
       stub_neon(:get, "projects/p1", body: { project: { id: "p1" } })
-      expect(client.project("p1").project.id).to eq("p1")
+      response = client.project("p1")
+      expect(response).to be_a(NeonAPI::Types::ProjectResponse)
+      expect(response.project).to be_a(NeonAPI::Types::Project)
+      expect(response.project.id).to eq("p1")
     end
 
     it "#project_create wraps the payload under :project" do
@@ -81,9 +86,11 @@ RSpec.describe NeonAPI::Client do
   end
 
   describe "databases" do
-    it "#databases lists for a branch" do
+    it "#databases lists for a branch with typed items" do
       stub_neon(:get, "projects/p1/branches/b1/databases", body: { databases: [{ name: "neondb" }] })
-      expect(client.databases("p1", "b1").databases.first.name).to eq("neondb")
+      databases = client.databases("p1", "b1").databases
+      expect(databases.first).to be_a(NeonAPI::Types::Database)
+      expect(databases.first.name).to eq("neondb")
     end
 
     it "#database fetches one by name" do
@@ -200,7 +207,9 @@ RSpec.describe NeonAPI::Client do
       stub_request(:get, "#{APIHelpers::BASE_URL}/projects").with(query: { "cursor" => "c1" })
                                                             .to_return(json.call(projects: [{ id: "p2" }], pagination: {}))
 
-      expect(client.each_project.map(&:id)).to eq(%w[p1 p2])
+      items = client.each_project.to_a
+      expect(items.map(&:id)).to eq(%w[p1 p2])
+      expect(items).to all(be_a(NeonAPI::Types::ProjectListItem))
     end
 
     it "#paginate returns an Enumerator without a block" do

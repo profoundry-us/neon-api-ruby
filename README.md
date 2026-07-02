@@ -29,6 +29,7 @@ into a Rails app.
   - [Verify JWTs at runtime](#verify-jwts-at-runtime)
 - [Rails sign-in (server-side)](#rails-sign-in-server-side)
 - [Management API](#management-api)
+- [Typed responses](#typed-responses)
 - [Error handling](#error-handling)
 - [Calling endpoints that aren't wrapped yet](#calling-endpoints-that-arent-wrapped-yet)
 - [Development](#development)
@@ -422,6 +423,38 @@ client.paginate("projects/#{project_id}/endpoints", collection: "endpoints").to_
 
 For anything not yet wrapped, see [below](#calling-endpoints-that-arent-wrapped-yet).
 
+## Typed responses
+
+Responses come back as `NeonAPI::Types` classes generated straight from
+[Neon's OpenAPI specification](https://neon.com/api_spec/release/v2.json) — one
+class per response schema, with a documented reader for every known field
+(YARD-typed, so you get docs and editor completion):
+
+```ruby
+response = client.project(project_id) #=> NeonAPI::Types::ProjectResponse
+project  = response.project           #=> NeonAPI::Types::Project
+project.name                          # documented: @return [String]
+project.settings                      #=> NeonAPI::Types::ProjectSettingsData
+project.created_at                    # documented: @return [String]
+
+client.databases(project_id, branch_id).databases
+#=> [NeonAPI::Types::Database, ...]
+```
+
+Every typed class is still a `NeonAPI::Object`, so nothing about the dynamic
+style changes: `project["name"]`, `project.name?`, `to_h`, and method-style
+access to **fields newer than the generated code** all keep working. The types
+are a documentation and discoverability layer, not a schema validator — unknown
+fields pass through untouched.
+
+The generated file ([lib/neon_api/types.rb](lib/neon_api/types.rb)) is
+committed. To refresh it after Neon updates their spec:
+
+```bash
+rake types:generate                 # fetches the published spec
+rake types:generate SPEC=./v2.json  # or generate from a local copy
+```
+
 ## Error handling
 
 Non-2xx responses raise a subclass of `NeonAPI::APIError`, so you can rescue
@@ -531,7 +564,7 @@ network — the equivalent of the Python client's VCR cassettes.
 - [x] Management: me, api keys, projects, branches
 - [x] Management: databases, endpoints, roles, operations, consumption (+ pagination)
 - [x] Reliability: automatic retries (429/5xx) + request instrumentation
-- [ ] Generated schema/type objects from the OpenAPI spec
+- [x] Generated schema/type objects from the OpenAPI spec
 - [ ] Published to RubyGems
 
 ## License

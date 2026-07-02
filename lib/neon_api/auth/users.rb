@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "../object"
+require_relative "../types"
 
 module NeonAPI
   module Auth
@@ -32,10 +33,10 @@ module NeonAPI
       # @param password [String, nil] optional; omit for passwordless/OAuth-only
       # @param attributes [Hash] any additional fields Neon Auth accepts
       #   (e.g. :display_name, :role)
-      # @return [NeonAPI::Object]
+      # @return [Types::NeonAuthCreateNewUserResponse]
       def create(email:, password: nil, **attributes)
         body = { email: email, password: password, **attributes }.compact
-        wrap(@connection.post(@path, body: body))
+        wrap(@connection.post(@path, body: body), Types::NeonAuthCreateNewUserResponse)
       end
 
       # Update a user (the underlying endpoint is PUT).
@@ -65,8 +66,8 @@ module NeonAPI
 
       private
 
-      def wrap(payload)
-        payload.is_a?(::Hash) ? Object.new(payload) : payload
+      def wrap(payload, type = Object)
+        Types.wrap(payload, type)
       end
     end
   end

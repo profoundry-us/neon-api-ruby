@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "../object"
+require_relative "../types"
 require_relative "oauth_providers"
 require_relative "users"
 require_relative "jwt_verifier"
@@ -51,25 +52,25 @@ module NeonAPI
       #
       # @param auth_provider [String] one of {AUTH_PROVIDERS} (default "better_auth")
       # @param database_name [String, nil] which database to provision into
-      # @return [NeonAPI::Object]
+      # @return [Types::NeonAuthCreateIntegrationResponse]
       def enable(auth_provider: "better_auth", database_name: nil)
         body = { auth_provider: auth_provider, database_name: database_name }.compact
-        wrap(@connection.post(@base_path, body: body))
+        wrap(@connection.post(@base_path, body: body), Types::NeonAuthCreateIntegrationResponse)
       end
       alias create enable
 
       # Fetch the current integration configuration.
-      # @return [NeonAPI::Object] includes `jwks_url`, `base_url`, `auth_provider`, ...
+      # @return [Types::NeonAuthIntegration] includes `jwks_url`, `base_url`, `auth_provider`, ...
       def config
-        wrap(@connection.get(@base_path))
+        wrap(@connection.get(@base_path), Types::NeonAuthIntegration)
       end
       alias get config
 
       # Update integration settings (e.g. the display name).
       # @param attributes [Hash] fields to update (e.g. :name)
-      # @return [NeonAPI::Object]
+      # @return [Types::NeonAuthConfigResponse]
       def update(**attributes)
-        wrap(@connection.patch("#{@base_path}/config", body: attributes))
+        wrap(@connection.patch("#{@base_path}/config", body: attributes), Types::NeonAuthConfigResponse)
       end
 
       # Disable the integration.
@@ -142,8 +143,8 @@ module NeonAPI
 
       private
 
-      def wrap(payload)
-        payload.is_a?(::Hash) ? Object.new(payload) : payload
+      def wrap(payload, type = Object)
+        Types.wrap(payload, type)
       end
     end
   end

@@ -3,6 +3,7 @@
 require_relative "neon_api/version"
 require_relative "neon_api/errors"
 require_relative "neon_api/object"
+require_relative "neon_api/types"
 require_relative "neon_api/connection"
 require_relative "neon_api/client"
 require_relative "neon_api/auth/branch"

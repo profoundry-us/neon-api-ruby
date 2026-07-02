@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "../object"
+require_relative "../types"
 
 module NeonAPI
   module Auth
@@ -32,9 +33,9 @@ module NeonAPI
       end
 
       # List configured OAuth providers.
-      # @return [NeonAPI::Object]
+      # @return [Types::ListNeonAuthOauthProvidersResponse]
       def list
-        wrap(@connection.get(@path))
+        wrap(@connection.get(@path), Types::ListNeonAuthOauthProvidersResponse)
       end
       alias all list
 
@@ -48,7 +49,7 @@ module NeonAPI
       # @param client_id [String, nil] your OAuth app client id
       # @param client_secret [String, nil] your OAuth app client secret
       # @param microsoft_tenant_id [String, nil] required for some Microsoft setups
-      # @return [NeonAPI::Object]
+      # @return [Types::NeonAuthOauthProvider]
       def add(id:, client_id: nil, client_secret: nil, microsoft_tenant_id: nil)
         validate_id!(id)
         body = compact(
@@ -57,7 +58,7 @@ module NeonAPI
           client_secret: client_secret,
           microsoft_tenant_id: microsoft_tenant_id
         )
-        wrap(@connection.post(@path, body: body))
+        wrap(@connection.post(@path, body: body), Types::NeonAuthOauthProvider)
       end
       alias create add
 
@@ -67,7 +68,7 @@ module NeonAPI
       # @param client_id [String, nil]
       # @param client_secret [String, nil]
       # @param microsoft_tenant_id [String, nil]
-      # @return [NeonAPI::Object]
+      # @return [Types::NeonAuthOauthProvider]
       def update(id, client_id: nil, client_secret: nil, microsoft_tenant_id: nil)
         validate_id!(id)
         body = compact(
@@ -76,7 +77,7 @@ module NeonAPI
           client_secret: client_secret,
           microsoft_tenant_id: microsoft_tenant_id
         )
-        wrap(@connection.patch("#{@path}/#{id}", body: body))
+        wrap(@connection.patch("#{@path}/#{id}", body: body), Types::NeonAuthOauthProvider)
       end
 
       # Remove a provider from the integration.
@@ -101,8 +102,8 @@ module NeonAPI
         hash.compact
       end
 
-      def wrap(payload)
-        payload.is_a?(::Hash) ? Object.new(payload) : payload
+      def wrap(payload, type = Object)
+        Types.wrap(payload, type)
       end
     end
   end
