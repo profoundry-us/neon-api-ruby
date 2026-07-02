@@ -12,6 +12,9 @@ AllCops:
     # Generator templates are example code for the *generated* app (and contain
     # ERB), not gem source — they should not be linted as Ruby.
     - "lib/generators/**/templates/**/*"
+    # Machine-generated from the Neon OpenAPI spec (rake types:generate); its
+    # size and shape follow the spec, not our style rules.
+    - "lib/neon_api/types.rb"
 
 # This is a documentation- and example-heavy library; long descriptive blocks
 # and the breadth of the API surface make a few of the default metrics noisy
@@ -22,6 +25,9 @@ Metrics/AbcSize:
   Max: 30
 Metrics/ClassLength:
   Max: 250
+  # Literal data blocks (config hashes, code-template heredocs) read as one
+  # unit; counting each line penalizes declarative code.
+  CountAsOne: ["array", "hash", "heredoc"]
 Metrics/ParameterLists:
   Max: 6
   CountKeywordArgs: false

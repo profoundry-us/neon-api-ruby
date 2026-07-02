@@ -14,6 +14,19 @@ RuboCop::RakeTask.new
 
 task default: %i[spec rubocop]
 
+namespace :types do
+  desc "Regenerate lib/neon_api/types.rb from the Neon OpenAPI spec (SPEC=path-or-url to override)"
+  task :generate do
+    require_relative "lib/neon_api/type_generator"
+
+    source = ENV.fetch("SPEC", NeonAPI::TypeGenerator::DEFAULT_SPEC_URL)
+    spec = NeonAPI::TypeGenerator.load_spec(source)
+    code = NeonAPI::TypeGenerator.new(spec, source: source).generate
+    File.write("lib/neon_api/types.rb", code)
+    puts "Wrote lib/neon_api/types.rb (#{code.lines.count} lines) from #{source}"
+  end
+end
+
 namespace :matrix do
   desc "Regenerate the per-Ruby CI lockfiles (gemfiles/ruby_<ver>.gemfile.lock) via Docker"
   task :lock do
