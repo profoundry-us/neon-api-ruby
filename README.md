@@ -553,6 +553,19 @@ See [docs/docker.md](docs/docker.md) for the full command list and notes.
 Tests use [WebMock](https://github.com/bblimke/webmock) so they never touch the
 network — the equivalent of the Python client's VCR cassettes.
 
+To prove the client against Neon's **live** API (manual only — CI never runs
+this), there's a smoke script alongside the opt-in specs in
+[spec/integration](spec/integration):
+
+```bash
+ruby bin/live_smoke           # read-only sweep — safe on any account
+ruby bin/live_smoke mutate    # contained writes — THROWAWAY project only
+```
+
+It needs `NEON_API_KEY`; the `mutate` stage additionally refuses to run unless
+`NEON_PROJECT_ID` / `NEON_BRANCH_ID` explicitly name a disposable project (see
+[.env.example](.env.example)). Everything it creates, it deletes.
+
 ## Roadmap
 
 - [x] Authenticated client foundation (`from_environ` / `from_token`)

@@ -16,6 +16,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `rake types:generate` (`lib/neon_api/type_generator.rb` is the dev-only
   generator; `lib/neon_api/types.rb` is committed). Cursor pagination yields
   typed items too (`each_project` → `Types::ProjectListItem`).
+- **`bin/live_smoke`** — a manual (never CI) smoke script that proves the
+  typed client against Neon's live API: a read-only sweep safe on any account,
+  plus an opt-in `mutate` stage of contained, self-cleaning writes that only
+  runs against an explicitly configured throwaway project.
 - **Management API completion**: `databases`, `endpoints` (incl. `start` /
   `suspend`), `roles` (incl. `reset_password` / `reveal_password`), `operations`,
   `consumption_history_account` / `_projects`, and `connection_uri`. Plus a

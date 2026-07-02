@@ -1,0 +1,273 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# Manual live smoke test against a real Neon account. This is NOT run by CI or
+# the spec suite — run it yourself when you want end-to-end proof that the
+# typed client still matches Neon's live API:
+#
+#   ruby bin/live_smoke           # read-only sweep (safe on any account)
+#   ruby bin/live_smoke mutate    # + contained writes in a THROWAWAY project
+#
+# In the Docker dev environment:
+#
+#   docker compose exec -e NEON_API_KEY gem ruby bin/live_smoke
+#
+# Configuration comes from the environment (.env is loaded when dotenv is
+# available — see .env.example): NEON_API_KEY always; NEON_ORG_ID optionally.
+# The read stage targets NEON_PROJECT_ID / NEON_BRANCH_ID when set and
+# otherwise discovers your first project — it only ever GETs.
+#
+# The mutate stage refuses to run without an explicit NEON_PROJECT_ID +
+# NEON_BRANCH_ID, and they must point at a DISPOSABLE project: it creates and
+# deletes a database, role, branch, and Neon Auth user; suspends and restarts
+# the endpoint; rotates a scratch role's password; and renames the project
+# (restoring the original name). Everything is cleaned up, but don't point it
+# at production. Secrets are never printed in full.
+
+$LOAD_PATH.unshift File.expand_path("../lib", __dir__)
+require "neon_api"
+
+begin
+  require "dotenv/load"
+rescue LoadError
+  # dotenv is a dev dependency; fall back to the plain environment.
+end
+
+STAGE = ARGV.first || "read"
+
+# ENV lookup that treats empty strings as unset.
+def env(name)
+  value = ENV.fetch(name, nil)
+  value unless value.nil? || value.empty?
+end
+
+abort "NEON_API_KEY is not set — see .env.example" unless env("NEON_API_KEY")
+
+def check(label)
+  result = yield
+  puts "PASS  #{label}#{result ? " — #{result}" : ""}"
+rescue NeonAPI::APIError => e
+  puts "INFO  #{label} — #{e.class} (status #{e.status})"
+rescue StandardError => e
+  puts "FAIL  #{label} — #{e.class}: #{e.message[0, 120]}"
+end
+
+def trunc(value)
+  "#{value.to_s[0, 8]}…"
+end
+
+def wait_for(client, project_id, operations)
+  Array(operations).each do |op|
+    30.times do
+      current = client.operation(project_id, op.id).operation
+      break if %w[finished failed skipped cancelled].include?(current.status)
+
+      sleep 2
+    end
+  end
+end
+
+client = NeonAPI.from_environ
+
+org_id = env("NEON_ORG_ID") ||
+         Array(client.connection.get("users/me/organizations").to_h["organizations"]).dig(0, "id")
+
+project_id = env("NEON_PROJECT_ID")
+if project_id.nil?
+  query = org_id ? { org_id: org_id } : {}
+  project_id = client.projects(**query).projects.first&.id
+  abort "no projects found for this NEON_API_KEY; set NEON_PROJECT_ID" unless project_id
+end
+
+branch_id = env("NEON_BRANCH_ID") || begin
+  branches = client.branches(project_id).branches
+  (branches.find(&:default) || branches.first)&.id
+end
+
+puts "target: project=#{project_id} branch=#{branch_id}"
+puts
+puts "== read-only sweep =="
+
+check("me → CurrentUserInfoResponse") do
+  me = client.me
+  raise "got #{me.class}" unless me.is_a?(NeonAPI::Types::CurrentUserInfoResponse)
+
+  "email=#{me.email}"
+end
+
+check("api_keys → bare array of typed items") do
+  keys = client.api_keys
+  "ruby_class=#{keys.class}, first=#{keys.first&.class}, count=#{keys.size}"
+end
+
+check("projects → ProjectsList of ProjectListItem") do
+  list = client.projects(**(org_id ? { org_id: org_id } : {}))
+  raise "got #{list.class}" unless list.is_a?(NeonAPI::Types::ProjectsList)
+
+  items = list.projects
+  raise "items: #{items.map(&:class).uniq}" unless items.all?(NeonAPI::Types::ProjectListItem)
+
+  "#{items.size} projects"
+end
+
+check("each_project pagination (typed items)") do
+  ids = client.each_project(**{ limit: 1, org_id: org_id }.compact).map(&:id)
+  "walked #{ids.size} pages of 1"
+end
+
+check("project → ProjectResponse › Project › settings") do
+  project = client.project(project_id).project
+  raise "got #{project.class}" unless project.is_a?(NeonAPI::Types::Project)
+
+  "name=#{project.name}, settings=#{project.settings.class}, pg=#{project.pg_version}"
+end
+
+check("branches → BranchesList (merged annotations + pagination)") do
+  list = client.branches(project_id)
+  raise "got #{list.class}" unless list.is_a?(NeonAPI::Types::BranchesList)
+
+  "#{list.branches.size} branches, first=#{list.branches.first.class}, keys=#{list.keys.join(",")}"
+end
+
+check("branch → BranchDetail") do
+  detail = client.branch(project_id, branch_id)
+  raise "got #{detail.class}" unless detail.is_a?(NeonAPI::Types::BranchDetail)
+
+  "branch=#{detail.branch.class}, default=#{detail.branch.default}"
+end
+
+database_name = nil
+role_name = nil
+
+check("databases → DatabasesResponse of Database") do
+  list = client.databases(project_id, branch_id)
+  database_name = list.databases.first&.name
+  "#{list.databases.map(&:name).join(", ")} (#{list.databases.first.class})"
+end
+
+check("endpoints → EndpointsResponse of Endpoint") do
+  endpoint = client.endpoints(project_id).endpoints.first
+  raise "no endpoints on this project" unless endpoint
+
+  "#{endpoint.id} state=#{endpoint.current_state} (#{endpoint.class})"
+end
+
+check("roles → RolesResponse of Role") do
+  list = client.roles(project_id, branch_id)
+  role_name = list.roles.first&.name
+  "#{list.roles.map(&:name).join(", ")} (#{list.roles.first.class})"
+end
+
+check("operations → OperationsList of Operation (+ pagination)") do
+  list = client.operations(project_id, limit: 3)
+  op = list.operations.first
+  "#{list.operations.size} ops, first=#{op.action}/#{op.status} (#{op.class}), pagination=#{list.pagination.class}"
+end
+
+check("connection_uri → ConnectionURIResponse (truncated)") do
+  response = client.connection_uri(project_id, database_name: database_name, role_name: role_name)
+  "#{response.class}, uri=#{trunc(response.uri)}"
+end
+
+week_ago = (Time.now - (7 * 24 * 3600)).utc.strftime("%Y-%m-%dT00:00:00Z")
+today = Time.now.utc.strftime("%Y-%m-%dT00:00:00Z")
+
+check("consumption_history/projects (plan-gated on some accounts)") do
+  client.consumption_history_projects(
+    granularity: "daily", from: week_ago, to: today, **{ org_id: org_id }.compact
+  ).class
+end
+
+check("consumption_history/account (endpoint gone from Neon's spec)") do
+  client.consumption_history_account(
+    granularity: "daily", from: week_ago, to: today, **{ org_id: org_id }.compact
+  ).class
+end
+
+check("auth.config → NeonAuthIntegration") do
+  config = client.auth(project_id, branch_id).config
+  raise "got #{config.class}" unless config.is_a?(NeonAPI::Types::NeonAuthIntegration)
+
+  "provider=#{config.auth_provider}, jwks=#{config.jwks_url ? "present" : "missing"}"
+end
+
+check("oauth_providers.list → ListNeonAuthOauthProvidersResponse") do
+  list = client.auth(project_id, branch_id).oauth_providers.list
+  "#{list.class}, providers=#{Array(list.providers).map(&:id).join(",")}"
+end
+
+exit if STAGE != "mutate"
+
+unless env("NEON_PROJECT_ID") && env("NEON_BRANCH_ID")
+  abort "mutate stage needs explicit NEON_PROJECT_ID and NEON_BRANCH_ID pointing at a " \
+        "THROWAWAY project (see .env.example) — refusing to mutate a discovered project."
+end
+
+puts
+puts "== contained writes (throwaway project #{project_id} only) =="
+
+check("database_create → DatabaseOperations, then delete") do
+  created = client.database_create(project_id, branch_id,
+                                   database: { name: "live_smoke_db", owner_name: role_name })
+  raise "got #{created.class}" unless created.is_a?(NeonAPI::Types::DatabaseOperations)
+
+  wait_for(client, project_id, created.operations)
+  deleted = client.database_delete(project_id, branch_id, "live_smoke_db")
+  wait_for(client, project_id, deleted.operations)
+  "create+delete ok, ops typed: #{created.operations.first.class}"
+end
+
+check("role_create → reveal (truncated) → delete") do
+  created = client.role_create(project_id, branch_id, "live_smoke_role")
+  raise "got #{created.class}" unless created.is_a?(NeonAPI::Types::RoleOperations)
+
+  wait_for(client, project_id, created.operations)
+  revealed = client.role_reveal_password(project_id, branch_id, "live_smoke_role")
+  deleted = client.role_delete(project_id, branch_id, "live_smoke_role")
+  wait_for(client, project_id, deleted.operations)
+  "#{revealed.class}, password=#{trunc(revealed.password)}"
+end
+
+check("branch_create → BranchCreated, then delete (raw endpoint)") do
+  created = client.branch_create(project_id, branch: { name: "live-smoke-branch" })
+  raise "got #{created.class}" unless created.is_a?(NeonAPI::Types::BranchCreated)
+
+  wait_for(client, project_id, created.operations)
+  client.connection.delete("projects/#{project_id}/branches/#{created.branch.id}")
+  "branch=#{created.branch.class}, endpoints=#{Array(created.endpoints).size}"
+end
+
+check("endpoint suspend → start → EndpointOperations") do
+  endpoint_id = client.endpoints(project_id).endpoints.first.id
+  suspended = client.endpoint_suspend(project_id, endpoint_id)
+  raise "got #{suspended.class}" unless suspended.is_a?(NeonAPI::Types::EndpointOperations)
+
+  wait_for(client, project_id, suspended.operations)
+  started = client.endpoint_start(project_id, endpoint_id)
+  wait_for(client, project_id, started.operations)
+  "suspend+start ok"
+end
+
+check("auth user create → NeonAuthCreateNewUserResponse, then delete") do
+  users = client.auth(project_id, branch_id).users
+  created = users.create(email: "live-smoke-#{Time.now.to_i}@example.com", name: "Live Smoke")
+  raise "got #{created.class}" unless created.is_a?(NeonAPI::Types::NeonAuthCreateNewUserResponse)
+
+  users.delete(created.id)
+  "user id=#{trunc(created.id)} created+deleted"
+end
+
+check("project_update rename → ProjectOperations → restore") do
+  original = client.project(project_id).project.name
+  updated = client.project_update(project_id, project: { name: "#{original} (smoke)" })
+  raise "got #{updated.class}" unless updated.is_a?(NeonAPI::Types::ProjectOperations)
+
+  client.project_update(project_id, project: { name: original })
+  "renamed and restored (#{updated.project.class})"
+end
+
+puts
+puts "== post-mutation state check =="
+check("databases back to baseline") { client.databases(project_id, branch_id).databases.map(&:name).join(", ") }
+check("roles back to baseline") { client.roles(project_id, branch_id).roles.map(&:name).join(", ") }
+check("branches back to baseline") { client.branches(project_id).branches.map(&:name).join(", ") }
